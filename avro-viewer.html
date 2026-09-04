@@ -1,0 +1,656 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#f5f5f2">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'self' 'unsafe-inline' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data: blob:; media-src 'self' data: blob:; worker-src 'self' blob:; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Avro Viewer</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%20role%3D%22img%22%20aria-label%3D%22AVRO%20Viewer%22%3E%0A%20%20%3Cpath%20d%3D%22M15%205h25l13%2013v31a7%207%200%200%201-7%207H15a7%207%200%200%201-7-7V12a7%207%200%200%201%207-7Z%22%20fill%3D%22%23fff%22%20stroke%3D%22%2316624F%22%20stroke-width%3D%225%22%20stroke-linejoin%3D%22round%22%2F%3E%0A%20%20%3Cpath%20d%3D%22M40%205v13h13%22%20fill%3D%22none%22%20stroke%3D%22%2316624F%22%20stroke-width%3D%225%22%20stroke-linejoin%3D%22round%22%2F%3E%0A%20%20%3Crect%20x%3D%223%22%20y%3D%2227%22%20width%3D%2240%22%20height%3D%2218%22%20rx%3D%224%22%20fill%3D%22%2316624F%22%2F%3E%0A%20%20%3Ctext%20x%3D%2223.0%22%20y%3D%2240.4%22%20fill%3D%22%23fff%22%20font-family%3D%22Arial%2CHelvetica%2Csans-serif%22%20font-size%3D%2212.8%22%20font-weight%3D%22800%22%20text-anchor%3D%22middle%22%20letter-spacing%3D%22-.3%22%3EAVRO%3C%2Ftext%3E%0A%20%20%3Ccircle%20cx%3D%2247%22%20cy%3D%2247%22%20r%3D%228.5%22%20fill%3D%22%23fff%22%20stroke%3D%22%2316624F%22%20stroke-width%3D%225%22%2F%3E%0A%20%20%3Cpath%20d%3D%22m53.2%2053.2%207%207%22%20fill%3D%22none%22%20stroke%3D%22%2316624F%22%20stroke-width%3D%225%22%20stroke-linecap%3D%22round%22%2F%3E%0A%3C%2Fsvg%3E">
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f5f2;
+      --surface: #ffffff;
+      --surface-muted: #f0f0ed;
+      --surface-hover: #e9e9e5;
+      --text: #20211f;
+      --muted: #666963;
+      --line: #dadbd6;
+      --line-strong: #bfc1ba;
+      --accent: #16624f;
+      --accent-hover: #0e503f;
+      --accent-soft: #e1f0ea;
+      --danger: #b3261e;
+      --danger-soft: #fce8e6;
+      --warning: #835700;
+      --warning-soft: #fff5d9;
+      --focus: #4d8bc7;
+      --shadow-sm: 0 1px 2px rgba(25,28,24,.08),0 1px 6px rgba(25,28,24,.04);
+      --shadow-md: 0 12px 34px rgba(25,28,24,.10);
+      --radius: 12px;
+      --header-height: 66px;
+    }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background: var(--bg); scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP","Yu Gothic UI","Hiragino Kaku Gothic ProN",Meiryo,sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    button,input,select { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible {
+      outline: 3px solid color-mix(in srgb,var(--focus) 55%,transparent);
+      outline-offset: 2px;
+    }
+    .app-header {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      height: var(--header-height);
+      border-bottom: 1px solid color-mix(in srgb,var(--line) 80%,transparent);
+      background: color-mix(in srgb,var(--bg) 92%,transparent);
+      backdrop-filter: blur(14px);
+    }
+    .header-inner {
+      width: min(1180px,calc(100% - 32px));
+      height: 100%;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand { min-width: 0; display: flex; align-items: center; gap: 11px; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      width: 42px;
+      height: 42px;
+      background: transparent;
+      color: var(--accent);
+    }
+    .brand-mark svg { width: 40px; height: 40px; display: block; }
+    .brand-copy { min-width: 0; }
+    .brand-name { margin: 0; display: flex; align-items: center; gap: 8px; font-weight: 780; letter-spacing: -.02em; white-space: nowrap; }
+    .version-badge { padding: 2px 6px; border-radius: 999px; background: var(--surface-muted); color: var(--muted); font-size: 10px; font-weight: 720; letter-spacing: .02em; }
+    .brand-meta { margin: 1px 0 0; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .language-button,.icon-button {
+      border: 0;
+      background: transparent;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .language-button { min-width: 46px; padding: 8px 10px; font-size: 12px; font-weight: 750; }
+    .language-button:hover,.icon-button:hover { background: var(--surface-hover); }
+    .icon-button { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; }
+    .icon-button svg { width: 20px; height: 20px; }
+    .main { width: min(1180px,calc(100% - 32px)); margin: 0 auto; padding: 28px 0 54px; }
+    .page-intro { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; padding-bottom: 20px; }
+    .page-intro h1 { margin: 0; font-size: clamp(24px,3vw,34px); line-height: 1.18; letter-spacing: -.04em; }
+    .page-intro p { max-width: 720px; margin: 8px 0 0; color: var(--muted); line-height: 1.75; }
+    .local-badge {
+      flex: 0 0 auto;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 34px;
+      padding: 7px 10px;
+      border: 1px solid color-mix(in srgb,var(--accent) 24%,var(--line));
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 760;
+    }
+    .local-badge svg { width: 17px; height: 17px; }
+    .shell { border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm); }
+    .drop-shell { padding: 18px; }
+    .dropzone {
+      display: grid;
+      place-items: center;
+      min-height: 244px;
+      padding: 30px 18px;
+      border: 1.5px dashed var(--line-strong);
+      border-radius: 14px;
+      background: var(--surface-muted);
+      text-align: center;
+      transition: border-color .16s ease,background .16s ease,transform .16s ease;
+    }
+    .dropzone.dragover { border-color: var(--accent); background: var(--accent-soft); transform: translateY(-1px); }
+    .drop-icon { display: grid; place-items: center; width: 58px; height: 58px; margin: 0 auto 13px; border-radius: 16px; background: var(--surface); color: var(--accent); box-shadow: var(--shadow-sm); }
+    .drop-icon svg { width: 30px; height: 30px; }
+    .dropzone h2 { margin: 0; font-size: 18px; letter-spacing: -.02em; }
+    .dropzone p { margin: 7px 0 15px; color: var(--muted); font-size: 13px; }
+    .supported { margin-top: 12px !important; font-size: 11px !important; }
+    .button {
+      min-height: 42px;
+      padding: 9px 13px;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 720;
+      font-size: 12px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      text-decoration: none;
+    }
+    .button:hover { border-color: var(--line-strong); background: var(--surface-hover); }
+    .button.primary { border-color: var(--accent); background: var(--accent); color: #fff; }
+    .button.primary:hover { border-color: var(--accent-hover); background: var(--accent-hover); }
+    .button svg { width: 17px; height: 17px; flex: 0 0 auto; }
+    .button:disabled { cursor: not-allowed; opacity: .48; }
+    .hidden-input { position: fixed; left: -9999px; opacity: 0; }
+    .file-manager { display: none; margin-bottom: 14px; }
+    .file-manager.show { display: block; }
+    .file-manager-inner { padding: 10px; display: flex; align-items: center; gap: 10px; }
+    .file-tabs { min-width: 0; flex: 1 1 auto; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; }
+    .file-tab {
+      max-width: 280px;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 9px 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .file-tab.active { border-color: color-mix(in srgb,var(--accent) 52%,var(--line)); background: var(--accent-soft); }
+    .file-tab-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 700; }
+    .file-tab-close { display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; }
+    .file-tab-close:hover { background: color-mix(in srgb,var(--surface-hover) 84%,transparent); color: var(--text); }
+    .file-tab-close svg { width: 15px; height: 15px; }
+    .file-select-wrap { display: none; min-width: 0; flex: 1; }
+    select,input[type="text"],input[type="number"] {
+      min-height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      padding: 7px 10px;
+    }
+    select:hover,input:hover { border-color: var(--line-strong); }
+    .content { display: none; }
+    .content.show { display: block; }
+    .status-banner {
+      display: none;
+      align-items: flex-start;
+      gap: 9px;
+      margin-bottom: 14px;
+      padding: 11px 13px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: var(--surface);
+      font-size: 13px;
+    }
+    .status-banner.show { display: flex; }
+    .status-banner.warning { border-color: #e4c36c; background: var(--warning-soft); color: var(--warning); }
+    .status-banner.error { border-color: #efb4ae; background: var(--danger-soft); color: var(--danger); }
+    .status-banner svg { width: 18px; height: 18px; margin-top: 1px; flex: 0 0 auto; }
+    .app-page { margin-bottom: 14px; }
+    .section { overflow: hidden; }
+    .section + .section { margin-top: 14px; }
+    .section-head { padding: 15px 17px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--line); }
+    .section-title-wrap { min-width: 0; }
+    .section-head h2 { margin: 0; font-size: 15px; letter-spacing: -.015em; }
+    .section-head p { margin: 3px 0 0; color: var(--muted); font-size: 11px; }
+    .section-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .section-body { padding: 16px 17px 18px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 9px; }
+    .summary-card { min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-muted); }
+    .summary-label { display: block; color: var(--muted); font-size: 10px; font-weight: 720; letter-spacing: .02em; text-transform: uppercase; }
+    .summary-value { display: block; margin-top: 4px; font-size: 16px; font-weight: 780; line-height: 1.3; overflow-wrap: anywhere; }
+    .summary-value.small { font-size: 12px; font-weight: 700; }
+    .details-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 22px; margin-top: 14px; }
+    .detail-row { min-width: 0; display: grid; grid-template-columns: minmax(110px,.7fr) minmax(0,1.3fr); gap: 12px; align-items: start; padding: 9px 0; border-top: 1px solid var(--line); }
+    .detail-label { color: var(--muted); font-size: 11px; }
+    .detail-value { min-width: 0; font-size: 12px; font-weight: 650; overflow-wrap: anywhere; }
+    .detail-control { width: 100%; }
+    .notice { margin-top: 13px; padding: 10px 11px; border: 1px solid color-mix(in srgb,var(--warning) 28%,var(--line)); border-radius: 10px; background: var(--warning-soft); color: #674600; font-size: 12px; line-height: 1.65; }
+    .table-wrap { position: relative; width: 100%; overflow: auto; border: 1px solid var(--line); border-radius: 11px; background: var(--surface); -webkit-overflow-scrolling: touch; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 12px; }
+    th,td { padding: 9px 10px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); text-align: left; vertical-align: top; white-space: nowrap; }
+    th:last-child,td:last-child { border-right: 0; }
+    tbody tr:last-child td { border-bottom: 0; }
+    th { position: sticky; top: 0; z-index: 2; background: #f7f7f4; color: var(--muted); font-size: 10px; font-weight: 780; letter-spacing: .02em; }
+    tbody tr:hover td { background: #fbfbf9; }
+    tbody tr.deleted td { background: #fff9f8; color: color-mix(in srgb,var(--text) 73%,var(--muted)); }
+    .field-name { font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color: var(--text); font-weight: 720; }
+    .type-badge { display: inline-flex; align-items: center; min-height: 20px; padding: 2px 6px; border-radius: 999px; background: var(--surface-muted); color: var(--muted); font-size: 10px; font-weight: 760; }
+    .deleted-badge { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 999px; background: var(--danger-soft); color: var(--danger); font-size: 10px; font-weight: 760; }
+    .cell-button {
+      display: block;
+      width: 100%;
+      max-width: 260px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      text-align: left;
+      color: inherit;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cell-button:hover { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .null-value { color: #8b8e87; font-style: italic; }
+    .binary-value,.memo-value { color: var(--accent); font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size: 11px; }
+    .sort-button { border: 0; background: transparent; color: inherit; font: inherit; font-weight: inherit; padding: 0 13px 0 0; position: relative; cursor: pointer; }
+    .sort-button::after { content: ""; position: absolute; right: 1px; top: 50%; width: 0; height: 0; opacity: 0; transform: translateY(-50%); border-left: 4px solid transparent; border-right: 4px solid transparent; }
+    .sort-button.asc::after { opacity: 1; border-bottom: 6px solid var(--accent); margin-top: -2px; }
+    .sort-button.desc::after { opacity: 1; border-top: 6px solid var(--accent); margin-top: 2px; }
+    .table-empty { padding: 28px 16px; text-align: center; color: var(--muted); font-size: 13px; }
+    .data-toolbar { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 11px; }
+    .control-group { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; }
+    .field-control { display: grid; gap: 4px; }
+    .field-control > span { color: var(--muted); font-size: 10px; font-weight: 700; }
+    .field-control select { min-width: 86px; }
+    .toggle-label { min-height: 40px; display: inline-flex; align-items: center; gap: 7px; padding: 7px 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); font-size: 11px; font-weight: 680; cursor: pointer; }
+    .toggle-label input { accent-color: var(--accent); }
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 12px; flex-wrap: wrap; }
+    .page-info { min-width: 104px; text-align: center; color: var(--muted); font-size: 11px; }
+    .page-jump { width: 72px; text-align: center; }
+    .export-panel { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .export-filename { display: grid; gap: 4px; min-width: min(100%,300px); }
+    .export-filename > span { color: var(--muted); font-size: 10px; font-weight: 700; }
+    .filename-control { display: flex; align-items: stretch; }
+    .filename-control input { min-width: 0; flex: 1 1 auto; border-radius: 10px 0 0 10px; }
+    .filename-extension { display: flex; align-items: center; padding: 0 10px; border: 1px solid var(--line); border-left: 0; border-radius: 0 10px 10px 0; background: var(--surface-muted); color: var(--muted); font-size: 11px; font-weight: 700; }
+    .export-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .loading-box { display: none; align-items: center; justify-content: center; gap: 9px; min-height: 150px; color: var(--muted); }
+    .loading-box.show { display: flex; }
+    .spinner { width: 20px; height: 20px; border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .app-toast {
+      position: fixed;
+      z-index: 90;
+      left: 50%;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      transform: translate(-50%,18px);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: min(360px,calc(100vw - 32px));
+      max-width: min(520px,calc(100vw - 32px));
+      padding: 11px 12px 11px 14px;
+      border: 1px solid #40443d;
+      border-radius: 12px;
+      background: #262923;
+      color: #fff;
+      box-shadow: var(--shadow-md);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .16s ease,transform .16s ease;
+    }
+    .app-toast.show { opacity: 1; transform: translate(-50%,0); pointer-events: auto; }
+    .app-toast-message { min-width: 0; flex: 1; font-size: 12px; }
+    .app-toast-action { border: 0; border-radius: 8px; background: transparent; color: #b9eadb; font-weight: 780; cursor: pointer; padding: 6px 7px; }
+    dialog { width: min(620px,calc(100% - 28px)); max-width: 100%; padding: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--text); box-shadow: var(--shadow-md); }
+    dialog::backdrop { background: rgba(15,17,14,.52); backdrop-filter: blur(4px); }
+    .dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 17px; border-bottom: 1px solid var(--line); }
+    .dialog-header h2 { margin: 0; font-size: 16px; letter-spacing: -.015em; }
+    .dialog-body { padding: 17px 18px 24px; overflow: auto; max-height: calc(100dvh - 90px); }
+    .dialog-body h3 { margin: 22px 0 8px; padding-top: 17px; border-top: 1px solid var(--line); font-size: 13px; }
+    .dialog-body h3:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+    .dialog-body p,.dialog-body li { color: var(--muted); font-size: 12px; line-height: 1.75; }
+    .dialog-body ul,.dialog-body ol { padding-left: 21px; }
+    .dialog-note { padding: 10px 11px; border: 1px solid color-mix(in srgb,var(--accent) 22%,var(--line)); border-radius: 10px; background: var(--accent-soft); color: var(--text) !important; }
+    .cell-meta { display: grid; grid-template-columns: 105px minmax(0,1fr); gap: 8px 12px; padding-bottom: 13px; border-bottom: 1px solid var(--line); }
+    .cell-meta dt { color: var(--muted); font-size: 11px; }
+    .cell-meta dd { margin: 0; min-width: 0; font-size: 12px; font-weight: 650; overflow-wrap: anywhere; }
+    .cell-value-box { margin-top: 13px; min-height: 90px; max-height: 45vh; overflow: auto; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-muted); font: 12px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .columns-list { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+    .column-option { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 8px 9px; border: 1px solid var(--line); border-radius: 9px; }
+    .column-option input { accent-color: var(--accent); }
+    .column-option span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+    .mobile-bottom-bar { display: none; }
+    .footer { padding: 12px 4px 0; display: flex; justify-content: center; color: var(--muted); font-size: 10px; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    @media (max-width: 860px) {
+      .summary-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+      .details-grid { grid-template-columns: 1fr; }
+      .page-intro { align-items: stretch; flex-direction: column; gap: 10px; }
+      .local-badge { align-self: flex-start; }
+    }
+    @media (max-width: 620px) {
+      :root { --header-height: 58px; }
+      body.has-mobile-bar { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+      .header-inner,.main { width: min(100% - 24px,1180px); }
+      .brand-mark { width: 36px; height: 36px; }
+      .brand-mark svg { width: 34px; height: 34px; }
+      .brand-name { font-size: 14px; }
+      .brand-meta { display: none; }
+      .header-actions { gap: 3px; }
+      .main { padding-top: 18px; padding-bottom: 28px; }
+      .page-intro { padding-bottom: 14px; }
+      .page-intro h1 { font-size: 25px; }
+      .drop-shell { padding: 12px; }
+      .dropzone { min-height: 216px; padding: 24px 13px; }
+      .file-manager-inner { align-items: stretch; }
+      .file-tabs { display: none; }
+      .file-select-wrap { display: block; }
+      .file-select-wrap select { width: 100%; }
+      .section-head { align-items: stretch; flex-direction: column; padding: 13px 14px; }
+      .section-body { padding: 13px 14px 15px; }
+      .summary-grid { gap: 7px; }
+      .summary-card { padding: 10px; }
+      .summary-value { font-size: 14px; }
+      .detail-row { grid-template-columns: 105px minmax(0,1fr); gap: 10px; }
+      .data-toolbar,.export-panel { align-items: stretch; flex-direction: column; }
+      .control-group,.export-actions { width: 100%; }
+      .field-control { flex: 1 1 auto; min-width: 96px; }
+      .field-control select { width: 100%; }
+      .toggle-label { flex: 1 1 auto; justify-content: center; }
+      .export-filename { min-width: 100%; width: 100%; }
+      .export-actions .button { flex: 1 1 0; }
+      .pagination .button { min-width: 42px; padding-inline: 9px; }
+      .columns-list { grid-template-columns: 1fr; }
+      dialog { width: 100%; max-width: none; margin: auto 0 0; border-width: 1px 0 0; border-radius: 22px 22px 0 0; }
+      .dialog-body { padding-bottom: calc(22px + env(safe-area-inset-bottom)); }
+      .app-page { display: none; }
+      .app-page.mobile-active { display: block; }
+      .mobile-bottom-bar {
+        position: fixed;
+        z-index: 55;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: none;
+        grid-template-columns: repeat(3,minmax(0,1fr));
+        gap: 3px;
+        padding: 7px 9px calc(7px + env(safe-area-inset-bottom));
+        border-top: 1px solid var(--line);
+        background: color-mix(in srgb,var(--surface) 96%,transparent);
+        backdrop-filter: blur(14px);
+        box-shadow: 0 -8px 28px rgba(25,28,24,.08);
+      }
+      .mobile-bottom-bar.show { display: grid; }
+      .mobile-nav-button { min-height: 51px; display: grid; place-items: center; align-content: center; gap: 2px; border: 0; border-radius: 10px; background: transparent; color: var(--muted); cursor: pointer; font-size: 10px; font-weight: 720; }
+      .mobile-nav-button svg { width: 19px; height: 19px; }
+      .mobile-nav-button.active { background: var(--accent-soft); color: var(--accent); }
+      .footer { display: none; }
+    }
+    @media (max-width: 380px) {
+      .summary-grid { grid-template-columns: 1fr 1fr; }
+      .button { padding-inline: 10px; }
+      .page-info { min-width: 88px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *,*::before,*::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  
+    .view-switch { display:inline-flex; align-items:center; padding:3px; gap:2px; border:1px solid var(--line); background:var(--surface-muted); border-radius:10px; }
+    .view-switch button { border:0; background:transparent; color:var(--muted); min-height:32px; padding:5px 10px; border-radius:7px; cursor:pointer; font-size:12px; font-weight:720; }
+    .view-switch button.active { background:var(--surface); color:var(--accent); box-shadow:var(--shadow-sm); }
+    .issue-badge,.ok-badge,.type-mix-badge { display:inline-flex; align-items:center; min-height:22px; padding:2px 7px; border-radius:999px; font-size:10px; font-weight:760; white-space:nowrap; }
+    .issue-badge { background:var(--warning-soft); color:var(--warning); }
+    .ok-badge { background:var(--accent-soft); color:var(--accent); }
+    .type-mix-badge { background:var(--warning-soft); color:var(--warning); margin-left:6px; }
+    .analysis-progress { margin-top:14px; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:var(--surface-muted); }
+    .analysis-progress[hidden] { display:none; }
+    .progress-row { display:flex; align-items:center; justify-content:space-between; gap:12px; color:var(--muted); font-size:12px; }
+    .progress-track { height:6px; margin-top:8px; overflow:hidden; border-radius:999px; background:var(--line); }
+    .progress-value { height:100%; width:0; background:var(--accent); border-radius:inherit; transition:width .15s ease; }
+    .issue-panel { margin-top:14px; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+    .issue-panel[hidden] { display:none; }
+    .issue-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; background:var(--surface-muted); border-bottom:1px solid var(--line); }
+    .issue-head strong { font-size:12px; }
+    .issue-list { max-height:320px; overflow:auto; }
+    .issue-row { width:100%; display:grid; grid-template-columns:minmax(78px,auto) minmax(0,1fr); gap:10px; text-align:left; border:0; border-bottom:1px solid var(--line); background:var(--surface); padding:10px 12px; cursor:pointer; }
+    .issue-row:last-child { border-bottom:0; }
+    .issue-row:hover { background:var(--surface-muted); }
+    .issue-line { color:var(--accent); font-weight:760; font-variant-numeric:tabular-nums; }
+    .issue-copy { min-width:0; }
+    .issue-message { color:var(--text); font-size:12px; font-weight:650; }
+    .issue-raw { color:var(--muted); font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; margin-top:2px; }
+    .field-types { display:flex; flex-wrap:wrap; gap:4px; }
+    .field-type-chip { display:inline-flex; align-items:center; padding:2px 6px; border-radius:6px; background:var(--surface-muted); color:var(--muted); font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:10px; }
+    .line-cell { white-space:nowrap; font-variant-numeric:tabular-nums; color:var(--muted); }
+    .line-status { display:inline-flex; align-items:center; gap:5px; }
+    .raw-invalid { max-width:380px; color:var(--warning); font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:11px; }
+    .record-list { display:grid; gap:10px; }
+    .record-card { border:1px solid var(--line); border-radius:10px; background:var(--surface); overflow:hidden; }
+    .record-card[open] { box-shadow:var(--shadow-sm); }
+    .record-card > summary { list-style:none; cursor:pointer; display:flex; align-items:center; gap:9px; min-height:44px; padding:9px 12px; }
+    .record-card > summary::-webkit-details-marker { display:none; }
+    .record-card > summary:hover { background:var(--surface-muted); }
+    .record-line { color:var(--accent); font-weight:760; font-variant-numeric:tabular-nums; }
+    .record-summary-text { min-width:0; flex:1; color:var(--muted); font-size:12px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+    .record-pre { margin:0; padding:13px 14px; max-height:420px; overflow:auto; border-top:1px solid var(--line); background:#fafaf8; white-space:pre-wrap; overflow-wrap:anywhere; font:12px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; color:var(--text); }
+    .issue-count-note { color:var(--muted); font-size:11px; }
+    .data-view-hidden { display:none !important; }
+    .toolbar-spacer { flex:1; }
+    .field-name-wrap { display:flex; align-items:center; gap:6px; min-width:0; }
+    @media (max-width: 720px) {
+      .view-switch { width:100%; }
+      .view-switch button { flex:1; }
+      .issue-row { grid-template-columns:72px minmax(0,1fr); }
+      .record-card > summary { align-items:flex-start; flex-wrap:wrap; }
+      .record-summary-text { flex-basis:100%; }
+    }
+
+  
+    .overview-subsections { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:12px; margin-top:14px; }
+    .subpanel { min-width:0; border:1px solid var(--line); border-radius:11px; overflow:hidden; background:var(--surface); }
+    .subpanel-head { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border-bottom:1px solid var(--line); background:var(--surface-muted); }
+    .subpanel-head strong { font-size:12px; }
+    .subpanel-body { max-height:280px; overflow:auto; }
+    .mini-table { width:100%; border-collapse:collapse; font-size:11px; }
+    .mini-table th,.mini-table td { padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:top; }
+    .mini-table th { position:sticky; top:0; z-index:1; background:var(--surface-muted); color:var(--muted); font-size:10px; font-weight:760; }
+    .mini-table tr:last-child td { border-bottom:0; }
+    .mini-key { max-width:180px; font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; overflow-wrap:anywhere; }
+    .mini-value { min-width:0; overflow-wrap:anywhere; }
+    .schema-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+    .schema-tree { display:grid; gap:5px; }
+    .schema-node { border-left:1px solid var(--line); margin-left:7px; padding-left:11px; }
+    .schema-row { min-height:32px; display:flex; align-items:center; gap:8px; min-width:0; }
+    .schema-name { min-width:0; overflow-wrap:anywhere; font:600 12px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; }
+    .schema-type { flex:0 0 auto; padding:2px 6px; border-radius:999px; background:var(--surface-muted); color:var(--muted); font-size:10px; font-weight:760; }
+    .schema-logical { color:var(--accent); font-size:10px; font-weight:700; }
+    .schema-children { margin-left:8px; }
+    .raw-schema { margin:0; max-height:58vh; overflow:auto; padding:13px; border:1px solid var(--line); border-radius:10px; background:var(--surface-muted); font:11px/1.65 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; white-space:pre; }
+    .schema-view-hidden { display:none !important; }
+    .unsupported-codec { color:var(--danger); font-weight:750; }
+    @media (max-width:860px){ .overview-subsections{grid-template-columns:1fr;} }
+    @media (max-width:620px){ .subpanel-body{max-height:220px;} .schema-toolbar{align-items:stretch;} }
+
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AVRO Viewer">
+  <path d="M15 5h25l13 13v31a7 7 0 0 1-7 7H15a7 7 0 0 1-7-7V12a7 7 0 0 1 7-7Z" fill="#fff" stroke="#16624F" stroke-width="5" stroke-linejoin="round"/>
+  <path d="M40 5v13h13" fill="none" stroke="#16624F" stroke-width="5" stroke-linejoin="round"/>
+  <rect x="3" y="27" width="40" height="18" rx="4" fill="#16624F"/>
+  <text x="23.0" y="40.4" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="12.8" font-weight="800" text-anchor="middle" letter-spacing="-.3">AVRO</text>
+  <circle cx="47" cy="47" r="8.5" fill="#fff" stroke="#16624F" stroke-width="5"/>
+  <path d="m53.2 53.2 7 7" fill="none" stroke="#16624F" stroke-width="5" stroke-linecap="round"/>
+</svg>
+        </div>
+        <div class="brand-copy"><p class="brand-name"><span id="brandName">Avro Viewer</span><span class="version-badge" id="versionBadge">v1.0.0</span></p><p class="brand-meta" data-i18n="brandMeta">Avroをブラウザー内で確認</p></div>
+      </div>
+      <div class="header-actions">
+        <button class="language-button" id="languageButton" type="button" aria-label="Switch language">EN</button>
+        <button class="icon-button" id="helpButton" type="button" data-i18n-title="helpTitle" data-i18n-aria-label="helpTitle" title="使い方と注意事項" aria-label="使い方と注意事項"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.8 9a2.35 2.35 0 1 1 3.72 1.9c-.92.67-1.52 1.12-1.52 2.1"/><path d="M12 17h.01"/></svg></button>
+      </div>
+    </div>
+  </header>
+  <main class="main">
+    <section class="page-intro" aria-labelledby="heroTitle"><div><h1 id="heroTitle" data-i18n="introTitle">Avroを開いてスキーマとデータを確認</h1><p data-i18n="lead">Object Container Fileのスキーマ、メタデータ、ブロック構成、レコードを確認します。必要なページだけ読み込みます。</p></div><div class="local-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 5 6v5c0 4.6 2.8 8 7 10 4.2-2 7-5.4 7-10V6z"/><path d="m9 12 2 2 4-5"/></svg><span data-i18n="localBadge">完全ローカル処理</span></div></section>
+    <!-- APP:BEGIN -->
+    <section class="shell drop-shell" id="emptyState"><div class="dropzone" id="dropzone" tabindex="0" role="button" aria-describedby="dropDescription"><div><div class="drop-icon" aria-hidden="true"><svg viewBox="0 0 1254 1254" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><g transform="translate(0,1254) scale(0.1,-0.1)" fill="#16624F"><path d="M6170 10966 c-126 -35 -216 -110 -273 -225 l-32 -66 -3 -1987 c-1 -1283 -6 -1988 -12 -1988 -10 0 -315 297 -777 755 -215 213 -252 245 -320 280 -77 39 -80 40 -183 40 -98 0 -110 -3 -171 -32 -82 -40 -159 -115 -196 -190 -26 -54 -28 -67 -28 -173 0 -110 2 -119 32 -180 18 -36 43 -76 56 -90 33 -35 1028 -1021 1447 -1436 256 -253 358 -348 397 -367 97 -50 224 -52 321 -6 48 23 94 68 1356 1319 569 564 522 514 551 576 39 82 50 174 31 263 -27 129 -101 223 -222 282 -65 32 -75 34 -175 34 -105 0 -107 -1 -183 -40 -69 -36 -120 -84 -581 -537 -278 -274 -510 -498 -515 -498 -6 0 -10 707 -10 1963 0 1584 -3 1973 -13 2013 -25 97 -101 196 -189 247 -87 52 -214 69 -308 43z"/><path d="M2930 6701 c-48 -15 -105 -50 -136 -83 -26 -27 -184 -240 -235 -314 -25 -39 -252 -348 -281 -384 -15 -19 -62 -82 -104 -140 -247 -337 -667 -896 -842 -1120 -40 -51 -83 -112 -95 -135 l-22 -40 0 -1165 0 -1165 23 -79 c40 -139 94 -229 202 -337 85 -86 107 -102 200 -147 195 -94 -308 -84 4575 -87 2791 -2 4354 0 4415 7 317 32 565 237 672 553 l23 70 3 1154 c2 1022 1 1160 -13 1200 -17 50 -18 51 -274 387 -213 279 -341 448 -496 659 -65 88 -150 203 -189 255 -39 53 -105 142 -146 199 -41 58 -111 153 -155 213 -44 60 -116 159 -160 220 -156 217 -184 245 -278 273 -42 13 -147 15 -641 15 l-591 0 -250 -250 c-137 -137 -251 -254 -253 -260 -3 -7 236 -10 762 -10 l765 0 75 -107 c41 -60 103 -147 138 -194 35 -48 131 -180 213 -294 83 -114 265 -363 407 -553 l256 -347 -1236 -5 c-1163 -5 -1240 -6 -1292 -24 -119 -39 -232 -141 -270 -244 -22 -59 -107 -341 -142 -471 -34 -131 -123 -237 -237 -283 l-56 -23 -995 0 -995 0 -67 32 c-81 38 -145 96 -181 161 -15 27 -43 105 -63 173 -19 68 -53 183 -74 255 -47 165 -67 207 -120 267 -52 59 -107 97 -185 128 l-60 24 -1243 3 -1243 3 38 52 c20 29 116 158 212 287 96 129 197 267 226 305 62 83 188 257 305 420 47 65 117 161 156 214 38 53 89 124 112 159 l43 62 749 0 c411 0 756 3 765 6 13 5 -41 65 -236 260 l-254 254 -600 -1 c-330 0 -611 -4 -625 -8z m1440 -2565 c0 -7 22 -87 49 -177 156 -522 167 -547 280 -659 87 -87 164 -131 277 -160 75 -19 115 -20 1288 -20 1343 0 1286 -2 1426 66 55 27 96 58 151 113 114 114 124 138 290 704 l43 147 1313 0 1313 0 -2 -967 -3 -968 -27 -51 c-29 -56 -81 -100 -140 -121 -32 -11 -793 -13 -4364 -14 l-4325 0 -42 20 c-57 28 -105 76 -131 131 -21 45 -21 54 -24 1008 l-2 962 1315 0 c1109 0 1315 -2 1315 -14z"/></g></svg></div><h2 data-i18n="dropTitle">Avroファイルをここにドロップ</h2><p id="dropDescription" data-i18n="dropBody">ファイル全体を展開せず、ヘッダーとブロック構成を先に確認します。</p><button class="button primary" id="chooseButton" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 7.5h6l2-2h9v13h-17z"/><path d="M3.5 9.5h17"/></svg><span data-i18n="chooseFiles">ファイルを選択</span></button><p class="supported" data-i18n="supportedFormats">対応: .avro（Object Container File）</p></div></div></section>
+    <input class="hidden-input" id="fileInput" type="file" accept=".avro,application/avro,application/octet-stream" multiple>
+    <section class="shell file-manager" id="fileManager" aria-label="Open files"><div class="file-manager-inner"><div class="file-tabs" id="fileTabs"></div><label class="file-select-wrap"><span class="sr-only" data-i18n="openFile">開いているファイル</span><select id="fileSelect" aria-label="Open files"></select></label><button class="button" id="addFilesButton" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span data-i18n="addFiles">追加</span></button></div></section>
+    <div class="status-banner" id="statusBanner" role="status" aria-live="polite"></div>
+    <div class="content" id="content">
+      <div class="app-page mobile-active" id="pageOverview" data-mobile-page="overview"><section class="shell section"><div class="section-head"><div class="section-title-wrap"><h2 data-i18n="overviewTitle">ファイル情報</h2><p id="activeFileSubtitle"></p></div></div><div class="section-body"><div class="summary-grid" id="summaryGrid"></div><div class="details-grid" id="detailsGrid"></div><div class="overview-subsections"><div class="subpanel"><div class="subpanel-head"><strong data-i18n="metadataTitle">メタデータ</strong><span id="metadataCount"></span></div><div class="subpanel-body" id="metadataWrap"></div></div><div class="subpanel"><div class="subpanel-head"><strong data-i18n="blocksTitle">ブロック</strong><span id="blocksCount"></span></div><div class="subpanel-body" id="blocksWrap"></div></div></div></div></section></div>
+      <div class="app-page" id="pageFields" data-mobile-page="fields"><section class="shell section"><div class="section-head"><div class="section-title-wrap"><h2 data-i18n="schemaTitle">スキーマ</h2><p id="schemaSubtitle"></p></div><div class="section-actions"><div class="view-switch" aria-label="Schema view"><button id="schemaTreeButton" class="active" type="button" data-i18n="treeView">Tree</button><button id="schemaRawButton" type="button" data-i18n="rawView">Raw</button></div><button class="button" id="copySchemaButton" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span data-i18n="copySchema">スキーマをコピー</span></button></div></div><div class="section-body"><div id="schemaTree" class="schema-tree"></div><pre id="schemaRaw" class="raw-schema schema-view-hidden"></pre></div></section></div>
+      <div class="app-page" id="pageData" data-mobile-page="data"><section class="shell section"><div class="section-head"><div class="section-title-wrap"><h2 data-i18n="dataTitle">データプレビュー</h2><p data-i18n="dataSubtitle">必要なブロックだけ展開して現在ページを表示します。</p></div><div class="section-actions"><div class="view-switch" aria-label="View mode"><button id="tableModeButton" class="active" type="button" data-i18n="tableView">Table</button><button id="recordModeButton" type="button" data-i18n="recordView">Record</button></div><button class="button" id="columnsButton" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM10 5v14M16 5v14"/></svg><span data-i18n="columns">列</span></button></div></div><div class="section-body"><div class="data-toolbar"><div class="control-group"><label class="field-control"><span data-i18n="rowsPerPage">1ページの行数</span><select id="pageSizeSelect"><option value="50">50</option><option value="100" selected>100</option><option value="250">250</option><option value="500">500</option><option value="1000">1000</option></select></label></div><div id="pageRangeLabel" class="page-info"></div></div><div class="loading-box" id="dataLoading"><span class="spinner" aria-hidden="true"></span><span data-i18n="loadingRecords">レコードを読み込み中…</span></div><div class="table-wrap" id="dataTableWrap"></div><div class="record-list data-view-hidden" id="recordList"></div><div class="pagination" id="pagination"><button class="button" id="prevButton" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 6-6 6 6 6"/></svg><span data-i18n="previous">前へ</span></button><div class="page-info" id="pageInfo"></div><label><span class="sr-only" data-i18n="pageNumber">ページ番号</span><input class="page-jump" id="pageJump" type="number" min="1" inputmode="numeric" aria-label="Page number"></label><button class="button" id="nextButton" type="button"><span data-i18n="next">次へ</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 6 6 6-6 6"/></svg></button></div><div class="export-panel"><label class="export-filename" for="outputFilename"><span data-i18n="outputFilename">CSVファイル名</span><span class="filename-control"><input id="outputFilename" type="text" maxlength="120" autocomplete="off" spellcheck="false"><span class="filename-extension">.csv</span></span></label><div class="export-actions"><button class="button" id="copyCsvButton" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span data-i18n="copyCsv">CSVをコピー</span></button><button class="button primary" id="downloadCsvButton" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 19h14"/></svg><span data-i18n="downloadCsv">CSVを保存</span></button></div></div></div></section></div>
+    </div>
+    <!-- APP:END -->
+    <div class="footer"><span id="footerText"></span></div>
+  </main>
+  <nav class="mobile-bottom-bar" id="mobileBottomBar" aria-label="Sections"><button class="mobile-nav-button active" type="button" data-mobile-target="overview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n="overviewTab">概要</span></button><button class="mobile-nav-button" type="button" data-mobile-target="fields"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM8 9h8M8 13h8M8 17h5"/></svg><span data-i18n="schemaTab">スキーマ</span></button><button class="mobile-nav-button" type="button" data-mobile-target="data"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v14H4zM4 10h16M9 5v14M15 5v14"/></svg><span data-i18n="dataTab">データ</span></button></nav>
+  <div class="app-toast" id="appToast" role="status" aria-live="polite" aria-atomic="true" data-tone="default"><div class="app-toast-message" id="appToastMessage"></div><button class="app-toast-action" id="appToastAction" type="button" hidden></button></div>
+  <dialog id="helpDialog" aria-labelledby="helpTitle"><div class="dialog-header"><h2 id="helpTitle" data-i18n="helpTitle">使い方と注意事項</h2><button class="icon-button" id="closeHelpButton" type="button" data-i18n-aria-label="close" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="dialog-body"><!-- APP:HELP:BEGIN --><h3 data-i18n="helpBasicsTitle">基本操作</h3><ol><li data-i18n="helpStep1">.avroファイルを選択またはドロップします。</li><li data-i18n="helpStep2">ファイル情報でレコード数、ブロック、圧縮方式、メタデータを確認します。</li><li data-i18n="helpStep3">スキーマをTree / Rawで確認し、データをTable / Recordで表示します。</li><li data-i18n="helpStep4">現在ページをCSVとしてコピーまたは保存できます。</li></ol><h3 data-i18n="helpPrivacyTitle">プライバシー</h3><p data-i18n="helpPrivacyBody">読み込んだファイルはブラウザー内だけで処理します。このアプリから外部サーバーへ送信しません。</p><h3 data-i18n="helpNotesTitle">注意事項</h3><ul><li data-i18n="helpNoteContainer">現在のバージョンはAvro Object Container Fileを対象にします。Raw Avro binaryやRPCデータは対象外です。</li><li data-i18n="helpNoteCodec">null / deflate / snappyを内蔵で読み込みます。zstandardはブラウザーがDecompressionStreamで対応している場合に利用します。</li><li data-i18n="helpNoteReadOnly">閲覧専用です。元のAvroファイルを書き換えません。</li><li data-i18n="helpNoteCsv">CSV出力はファイル全体ではなく現在ページが対象です。</li></ul><p class="dialog-note" data-i18n="helpOffline">配布用HTMLは実行時の外部通信を必要とせず、ローカルファイルとして直接開けます。</p><!-- APP:HELP:END --></div></dialog>
+  <dialog id="cellDialog" aria-labelledby="cellDialogTitle"><div class="dialog-header"><h2 id="cellDialogTitle" data-i18n="cellDetails">セルの内容</h2><button class="icon-button" id="closeCellButton" type="button" data-i18n-aria-label="close" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="dialog-body"><dl class="cell-meta"><dt data-i18n="recordLabel">レコード</dt><dd id="cellLine"></dd><dt data-i18n="fieldLabel">フィールド</dt><dd id="cellField"></dd><dt data-i18n="typeLabel">型</dt><dd id="cellType"></dd></dl><div class="cell-value-box" id="cellValue"></div><div class="dialog-actions"><button class="button" id="copyCellButton" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="11" height="11" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg><span data-i18n="copyValue">値をコピー</span></button></div></div></dialog>
+  <dialog id="columnsDialog" aria-labelledby="columnsDialogTitle"><div class="dialog-header"><h2 id="columnsDialogTitle" data-i18n="columnsTitle">表示する列</h2><button class="icon-button" id="closeColumnsButton" type="button" data-i18n-aria-label="close" aria-label="閉じる"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><div class="dialog-body"><div class="columns-list" id="columnsList"></div><div class="dialog-actions"><button class="button" id="showAllColumnsButton" type="button" data-i18n="showAllColumns">すべて表示</button><button class="button primary" id="applyColumnsButton" type="button" data-i18n="done">完了</button></div></div></dialog>
+  <script>
+    (() => {
+      'use strict';
+      const APP_CONFIG={"$schema":"./schemas/app-config.schema.json","name":"Avro Viewer","nameJa":"Avro Viewer","slug":"avro-viewer","version":"1.0.0","description":"Open Apache Avro Object Container Files locally and inspect schema, metadata, blocks, and records.","descriptionJa":"Avro Object Container Fileをブラウザー内で開き、スキーマ・メタデータ・ブロック・レコードを確認します。","defaultLanguage":"auto","repository":{"owner":"ttomohisa","name":"htmlapps-avro-viewer"},"build":{"output":"dist/index.html","blockRuntimeNetwork":true,"selfExtract":{"enabled":true,"output":"dist/index.self-extract.html"},"sizeBudget":{"readableWarningMb":10,"selfExtractWarningMb":6}}};
+      const BUILD_MANIFEST={"schemaVersion":2,"builder":"single-html-app-template/1.2","generatedAtUtc":"2026-09-04T03:34:29.978252Z","app":{"name":"Avro Viewer","slug":"avro-viewer","version":"1.0.0"},"dependencies":[]};
+      const EMBEDDED_ASSET_BUNDLE={"schemaVersion":2,"dependencies":{}};
+      const assetByteCache=new Map();
+      const blobUrls=new Set();
+      function decodeBase64Bytes(base64){const binary=atob(base64);const bytes=new Uint8Array(binary.length);for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);return bytes;}
+      function getAsset(dependencyId,assetKey){const asset=EMBEDDED_ASSET_BUNDLE.dependencies?.[dependencyId]?.assets?.[assetKey];if(!asset)throw new Error(`Embedded asset not found: ${dependencyId}/${assetKey}`);return asset;}
+      async function inflateAsset(asset){const stored=decodeBase64Bytes(asset.base64);if(!asset.compression||asset.compression==='none')return stored;if(asset.compression!=='gzip')throw new Error(`Unsupported embedded asset compression: ${asset.compression}`);if(typeof DecompressionStream!=='function')throw new Error('This browser cannot expand gzip-compressed embedded assets.');return new Uint8Array(await new Response(new Blob([stored]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());}
+      window.StandaloneAssets=Object.freeze({manifest:BUILD_MANIFEST,list(){return Object.entries(EMBEDDED_ASSET_BUNDLE.dependencies||{}).flatMap(([dependencyId,dependency])=>Object.keys(dependency.assets||{}).map(assetKey=>`${dependencyId}/${assetKey}`));},has(dependencyId,assetKey){return Boolean(EMBEDDED_ASSET_BUNDLE.dependencies?.[dependencyId]?.assets?.[assetKey]);},bytes(dependencyId,assetKey){const asset=getAsset(dependencyId,assetKey);if(asset.compression&&asset.compression!=='none')throw new Error(`Embedded asset ${dependencyId}/${assetKey} is gzip-compressed; use await StandaloneAssets.bytesAsync().`);return decodeBase64Bytes(asset.base64);},async bytesAsync(dependencyId,assetKey){const key=`${dependencyId}/${assetKey}`;if(!assetByteCache.has(key))assetByteCache.set(key,inflateAsset(getAsset(dependencyId,assetKey)));return new Uint8Array(await assetByteCache.get(key));},async blobUrlAsync(dependencyId,assetKey){const asset=getAsset(dependencyId,assetKey);const url=URL.createObjectURL(new Blob([await this.bytesAsync(dependencyId,assetKey)],{type:asset.mime||'application/octet-stream'}));blobUrls.add(url);return url;}});
+      window.addEventListener('pagehide',()=>{blobUrls.forEach(url=>URL.revokeObjectURL(url));blobUrls.clear();});
+      const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+      const textDecoder=new TextDecoder('utf-8',{fatal:false});
+      const storageKey=`${APP_CONFIG.slug}:language`;
+      const state={language:readStorage(storageKey)||preferredLanguage(),files:[],activeId:null,mobilePage:'overview',schemaView:'tree',activeCellText:'',toastTimer:0};
+      const I18N={
+        ja:{brandMeta:'Avroをブラウザー内で確認',introTitle:'Avroを開いてスキーマとデータを確認',lead:'Object Container Fileのスキーマ、メタデータ、ブロック構成、レコードを確認します。必要なページだけ読み込みます。',localBadge:'完全ローカル処理',dropTitle:'Avroファイルをここにドロップ',dropBody:'ファイル全体を展開せず、ヘッダーとブロック構成を先に確認します。',chooseFiles:'ファイルを選択',supportedFormats:'対応: .avro（Object Container File）',openFile:'開いているファイル',addFiles:'追加',overviewTitle:'ファイル情報',metadataTitle:'メタデータ',blocksTitle:'ブロック',schemaTitle:'スキーマ',treeView:'Tree',rawView:'Raw',copySchema:'スキーマをコピー',dataTitle:'データプレビュー',dataSubtitle:'必要なブロックだけ展開して現在ページを表示します。',tableView:'Table',recordView:'Record',columns:'列',rowsPerPage:'1ページの行数',loadingRecords:'レコードを読み込み中…',previous:'前へ',next:'次へ',pageNumber:'ページ番号',outputFilename:'CSVファイル名',copyCsv:'CSVをコピー',downloadCsv:'CSVを保存',overviewTab:'概要',schemaTab:'スキーマ',dataTab:'データ',helpTitle:'使い方と注意事項',close:'閉じる',helpBasicsTitle:'基本操作',helpStep1:'.avroファイルを選択またはドロップします。',helpStep2:'ファイル情報でレコード数、ブロック、圧縮方式、メタデータを確認します。',helpStep3:'スキーマをTree / Rawで確認し、データをTable / Recordで表示します。',helpStep4:'現在ページをCSVとしてコピーまたは保存できます。',helpPrivacyTitle:'プライバシー',helpPrivacyBody:'読み込んだファイルはブラウザー内だけで処理します。このアプリから外部サーバーへ送信しません。',helpNotesTitle:'注意事項',helpNoteContainer:'現在のバージョンはAvro Object Container Fileを対象にします。Raw Avro binaryやRPCデータは対象外です。',helpNoteCodec:'null / deflate / snappyを内蔵で読み込みます。zstandardはブラウザーがDecompressionStreamで対応している場合に利用します。',helpNoteReadOnly:'閲覧専用です。元のAvroファイルを書き換えません。',helpNoteCsv:'CSV出力はファイル全体ではなく現在ページが対象です。',helpOffline:'配布用HTMLは実行時の外部通信を必要とせず、ローカルファイルとして直接開けます。',cellDetails:'セルの内容',recordLabel:'レコード',fieldLabel:'フィールド',typeLabel:'型',copyValue:'値をコピー',columnsTitle:'表示する列',showAllColumns:'すべて表示',done:'完了',records:'レコード',fields:'フィールド',blocks:'ブロック',codec:'圧縮',fileSize:'ファイルサイズ',schemaName:'スキーマ',headerSize:'ヘッダー',modified:'更新日時',keyHeader:'キー',valueHeader:'値',metadataCount:'{count}件',blockCount:'{count}ブロック',fieldCount:'{count}フィールド',recordsRange:'{start}〜{end} / {total}',pageOf:'{page} / {pages}ページ',statusReady:'読み込みが完了しました。',statusReading:'{name} を確認しています…',statusPending:'確認待ちです。',invalidAvro:'Avro Object Container Fileとして読み込めません。',unsupportedCodec:'この圧縮方式はこのブラウザーでは読み込めません: {codec}',readFailed:'データを読み込めませんでした。',schemaCopied:'スキーマをコピーしました。',csvCopied:'CSVをコピーしました。',csvDownloaded:'CSVを保存しました。',valueCopied:'値をコピーしました。',copyFailed:'コピーできませんでした。',csvFailed:'CSVを作成できませんでした。',noRecords:'表示できるレコードがありません。',recordNo:'レコード {n}',rawSchema:'Raw schema',customMetadata:'カスタム',avroSchemaShown:'スキーマ画面に表示',bytes:'{count}バイト',compressedBytes:'保存サイズ',blockRecords:'レコード',blockOffset:'オフセット',empty:'空',nullValue:'null',booleanTrue:'true',booleanFalse:'false',footer:'Avro Viewer v{version} · 完全ローカル処理'},
+        en:{brandMeta:'Inspect Avro locally in your browser',introTitle:'Open Avro and inspect schema and data',lead:'Inspect the schema, metadata, blocks, and records in an Avro Object Container File. Only the blocks needed for the current page are decoded.',localBadge:'Fully local processing',dropTitle:'Drop Avro files here',dropBody:'Read the header and block layout first without expanding the entire file.',chooseFiles:'Choose files',supportedFormats:'Supported: .avro (Object Container File)',openFile:'Open files',addFiles:'Add',overviewTitle:'File information',metadataTitle:'Metadata',blocksTitle:'Blocks',schemaTitle:'Schema',treeView:'Tree',rawView:'Raw',copySchema:'Copy schema',dataTitle:'Data preview',dataSubtitle:'Only the blocks needed for the current page are decoded.',tableView:'Table',recordView:'Record',columns:'Columns',rowsPerPage:'Rows per page',loadingRecords:'Loading records…',previous:'Previous',next:'Next',pageNumber:'Page number',outputFilename:'CSV filename',copyCsv:'Copy CSV',downloadCsv:'Save CSV',overviewTab:'Overview',schemaTab:'Schema',dataTab:'Data',helpTitle:'Help and notes',close:'Close',helpBasicsTitle:'Basics',helpStep1:'Choose or drop a .avro file.',helpStep2:'Review record count, blocks, codec, and metadata.',helpStep3:'Inspect the schema as Tree / Raw and data as Table / Record.',helpStep4:'Copy or save the current page as CSV.',helpPrivacyTitle:'Privacy',helpPrivacyBody:'Files are processed only in your browser and are not sent to an external server by this app.',helpNotesTitle:'Notes',helpNoteContainer:'The current version supports Avro Object Container Files. Raw Avro binary and RPC payloads are outside this viewer.',helpNoteCodec:'null / deflate / snappy are handled locally. zstandard is used when the browser supports it through DecompressionStream.',helpNoteReadOnly:'This is a read-only viewer and does not modify the original Avro file.',helpNoteCsv:'CSV export targets the current page, not the entire file.',helpOffline:'The distributable HTML does not require runtime network access and can be opened directly as a local file.',cellDetails:'Cell details',recordLabel:'Record',fieldLabel:'Field',typeLabel:'Type',copyValue:'Copy value',columnsTitle:'Visible columns',showAllColumns:'Show all',done:'Done',records:'Records',fields:'Fields',blocks:'Blocks',codec:'Codec',fileSize:'File size',schemaName:'Schema',headerSize:'Header',modified:'Modified',keyHeader:'Key',valueHeader:'Value',metadataCount:'{count}',blockCount:'{count} blocks',fieldCount:'{count} fields',recordsRange:'{start}–{end} / {total}',pageOf:'Page {page} of {pages}',statusReady:'Ready.',statusReading:'Inspecting {name}…',statusPending:'Waiting to inspect this file.',invalidAvro:'Could not read this as an Avro Object Container File.',unsupportedCodec:'This codec is not available in this browser: {codec}',readFailed:'Could not load data.',schemaCopied:'Schema copied.',csvCopied:'CSV copied.',csvDownloaded:'CSV saved.',valueCopied:'Value copied.',copyFailed:'Could not copy.',csvFailed:'Could not create CSV.',noRecords:'No records to display.',recordNo:'Record {n}',rawSchema:'Raw schema',customMetadata:'Custom',avroSchemaShown:'Shown in Schema',bytes:'{count} bytes',compressedBytes:'Stored size',blockRecords:'Records',blockOffset:'Offset',empty:'Empty',nullValue:'null',booleanTrue:'true',booleanFalse:'false',footer:'Avro Viewer v{version} · Fully local processing'}
+      };
+      function preferredLanguage(){return /^ja\b/i.test(navigator.language||'')?'ja':'en';}
+      function readStorage(key){try{return localStorage.getItem(key);}catch{return null;}}
+      function writeStorage(key,value){try{localStorage.setItem(key,value);}catch{}}
+      function t(key,vars={}){let s=(I18N[state.language]&&I18N[state.language][key])||I18N.en[key]||key;for(const [k,v] of Object.entries(vars))s=s.replaceAll(`{${k}}`,String(v));return s;}
+      function formatNumber(n){return new Intl.NumberFormat(state.language==='ja'?'ja-JP':'en-US').format(Number(n)||0);}
+      function formatBytes(n){const v=Number(n)||0;if(v<1024)return `${v} B`;const u=['KB','MB','GB','TB'];let x=v/1024,i=0;while(x>=1024&&i<u.length-1){x/=1024;i++;}return `${x>=10?x.toFixed(1):x.toFixed(2)} ${u[i]}`;}
+      function toast(message){clearTimeout(state.toastTimer);$('#appToastMessage').textContent=message;$('#appToast').classList.add('show');state.toastTimer=setTimeout(()=>$('#appToast').classList.remove('show'),2600);}
+      window.AppToast={show:toast};
+      function setStatus(message,tone=''){const box=$('#statusBanner');box.textContent=message||'';box.className=`status-banner${message?' show':''}${tone?` ${tone}`:''}`;}
+      function basename(name){return String(name).replace(/\.[^.]+$/,'');}
+      function safeJson(value,space=2){return JSON.stringify(value,(k,v)=>typeof v==='bigint'?v.toString():v instanceof Uint8Array?bytesToHex(v):v,space);}
+      function bytesToHex(bytes,limit=96){const take=bytes.subarray(0,Math.min(bytes.length,limit));const hex=[...take].map(v=>v.toString(16).padStart(2,'0')).join(' ');return bytes.length>limit?`${hex} … (${bytes.length} bytes)`:hex;}
+      function prettyValue(value){if(value===null)return 'null';if(value===undefined)return '';if(value instanceof Uint8Array)return bytesToHex(value);if(typeof value==='object')return safeJson(value,2);return String(value);}
+      function cellText(value){if(value===null)return 'null';if(value===undefined)return '';if(value instanceof Uint8Array)return bytesToHex(value,32);if(typeof value==='object')return safeJson(value,0);return String(value);}
+      function typeOfValue(value){if(value===null)return 'null';if(value instanceof Uint8Array)return 'bytes';if(Array.isArray(value))return 'array';return typeof value==='object'?'object':typeof value;}
+
+      class Reader{
+        constructor(bytes){this.bytes=bytes;this.pos=0;}
+        ensure(n){if(this.pos+n>this.bytes.length)throw new Error('Unexpected end of data');}
+        byte(){this.ensure(1);return this.bytes[this.pos++];}
+        take(n){this.ensure(n);const out=this.bytes.subarray(this.pos,this.pos+n);this.pos+=n;return out;}
+        longBig(){let raw=0n,shift=0n;for(let i=0;i<10;i++){const b=this.byte();raw|=BigInt(b&127)<<shift;if(!(b&128))return (raw>>1n)^(-(raw&1n));shift+=7n;}throw new Error('Invalid Avro long');}
+        longNumber(){const v=this.longBig();const n=Number(v);if(!Number.isSafeInteger(n))throw new Error('Value exceeds safe integer range');return n;}
+        float(){this.ensure(4);const dv=new DataView(this.bytes.buffer,this.bytes.byteOffset+this.pos,4);const v=dv.getFloat32(0,true);this.pos+=4;return v;}
+        double(){this.ensure(8);const dv=new DataView(this.bytes.buffer,this.bytes.byteOffset+this.pos,8);const v=dv.getFloat64(0,true);this.pos+=8;return v;}
+        bytesValue(){const n=this.longNumber();if(n<0)throw new Error('Negative byte length');return this.take(n);}
+        string(){return textDecoder.decode(this.bytesValue());}
+      }
+      function decodeMapOfBytes(r){const out=new Map();while(true){let count=r.longNumber();if(count===0)break;if(count<0){count=-count;r.longNumber();}for(let i=0;i<count;i++){out.set(r.string(),r.bytesValue());}}return out;}
+      function fullName(name,namespace=''){if(!name)return '';return name.includes('.')?name:(namespace?`${namespace}.${name}`:name);}
+      function schemaNamespace(schema,parent=''){if(schema&&typeof schema==='object'&&!Array.isArray(schema)){if(schema.namespace)return schema.namespace;if(typeof schema.name==='string'&&schema.name.includes('.'))return schema.name.slice(0,schema.name.lastIndexOf('.'));}return parent;}
+      function buildNames(schema,names=new Map(),parentNs=''){if(Array.isArray(schema)){schema.forEach(s=>buildNames(s,names,parentNs));return names;}if(!schema||typeof schema!=='object')return names;const type=schema.type;const ns=schemaNamespace(schema,parentNs);if(['record','enum','fixed'].includes(type)&&schema.name){const fn=fullName(schema.name,ns);names.set(fn,schema);if(!names.has(schema.name))names.set(schema.name,schema);if(type==='record')for(const f of schema.fields||[])buildNames(f.type,names,ns);}else if(type==='array')buildNames(schema.items,names,parentNs);else if(type==='map')buildNames(schema.values,names,parentNs);else if(typeof type==='object')buildNames(type,names,parentNs);else if(Array.isArray(type))buildNames(type,names,parentNs);return names;}
+      function resolveSchema(schema,ctx,ns=''){if(typeof schema==='string'){if(['null','boolean','int','long','float','double','bytes','string'].includes(schema))return schema;return ctx.names.get(fullName(schema,ns))||ctx.names.get(schema)||schema;}return schema;}
+      function twosComplementBigInt(bytes){if(!bytes.length)return 0n;let v=0n;for(const b of bytes)v=(v<<8n)|BigInt(b);if(bytes[0]&0x80)v-=1n<<(BigInt(bytes.length)*8n);return v;}
+      function decimalString(bytes,scale=0){let v=twosComplementBigInt(bytes);const neg=v<0n;if(neg)v=-v;let s=v.toString();if(scale>0){s=s.padStart(scale+1,'0');s=`${s.slice(0,-scale)}.${s.slice(-scale)}`;}return `${neg?'-':''}${s}`;}
+      function applyLogical(value,schema){const logical=schema&&schema.logicalType;if(!logical)return value;try{if(logical==='date'&&typeof value==='number')return new Date(value*86400000).toISOString().slice(0,10);if(logical==='timestamp-millis'&&typeof value==='number')return new Date(value).toISOString();if(logical==='timestamp-micros'&&(typeof value==='number'||typeof value==='bigint')){const ms=typeof value==='bigint'?Number(value/1000n):value/1000;return new Date(ms).toISOString();}if(logical==='time-millis'&&typeof value==='number'){const h=Math.floor(value/3600000),m=Math.floor(value%3600000/60000),s=Math.floor(value%60000/1000),ms=value%1000;return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;}if(logical==='decimal'&&value instanceof Uint8Array)return decimalString(value,Number(schema.scale||0));}catch{}return value;}
+      function decodeDatum(input,r,ctx,ns=''){
+        let schema=resolveSchema(input,ctx,ns);
+        if(Array.isArray(schema)){const idx=r.longNumber();if(idx<0||idx>=schema.length)throw new Error('Invalid union branch');return decodeDatum(schema[idx],r,ctx,ns);}
+        if(typeof schema==='string'){
+          switch(schema){case 'null':return null;case 'boolean':return r.byte()!==0;case 'int':return r.longNumber();case 'long':{const v=r.longBig();return v<=BigInt(Number.MAX_SAFE_INTEGER)&&v>=BigInt(Number.MIN_SAFE_INTEGER)?Number(v):v;}case 'float':return r.float();case 'double':return r.double();case 'bytes':return r.bytesValue();case 'string':return r.string();default:{const ref=resolveSchema(schema,ctx,ns);if(ref===schema)throw new Error(`Unknown schema type: ${schema}`);return decodeDatum(ref,r,ctx,ns);}}
+        }
+        if(!schema||typeof schema!=='object')throw new Error('Invalid schema');
+        if(Array.isArray(schema.type))return decodeDatum(schema.type,r,ctx,ns);
+        if(typeof schema.type==='object')return decodeDatum(schema.type,r,ctx,ns);
+        const type=schema.type;const childNs=schemaNamespace(schema,ns);let value;
+        if(['null','boolean','int','long','float','double','bytes','string'].includes(type)){value=decodeDatum(type,r,ctx,ns);return applyLogical(value,schema);}
+        if(type==='record'){const obj={};for(const field of schema.fields||[])obj[field.name]=decodeDatum(field.type,r,ctx,childNs);return obj;}
+        if(type==='enum'){const idx=r.longNumber();return schema.symbols?.[idx]??`#${idx}`;}
+        if(type==='fixed'){value=r.take(Number(schema.size)||0);return applyLogical(value,schema);}
+        if(type==='array'){const arr=[];while(true){let count=r.longNumber();if(count===0)break;if(count<0){count=-count;r.longNumber();}for(let i=0;i<count;i++)arr.push(decodeDatum(schema.items,r,ctx,ns));}return arr;}
+        if(type==='map'){const obj={};while(true){let count=r.longNumber();if(count===0)break;if(count<0){count=-count;r.longNumber();}for(let i=0;i<count;i++)obj[r.string()]=decodeDatum(schema.values,r,ctx,ns);}return obj;}
+        return decodeDatum(type,r,ctx,ns);
+      }
+      function rootFields(schema){const s=schema&&typeof schema==='object'&&schema.type==='record'?schema:null;if(!s)return [{name:'__value',type:schema,index:0}];return (s.fields||[]).map((f,i)=>({name:f.name,type:f.type,index:i}));}
+      function typeLabel(schema){if(Array.isArray(schema))return schema.map(typeLabel).join(' | ');if(typeof schema==='string')return schema;if(!schema||typeof schema!=='object')return 'unknown';const base=Array.isArray(schema.type)?schema.type.map(typeLabel).join(' | '):typeof schema.type==='object'?typeLabel(schema.type):String(schema.type||'unknown');return schema.logicalType?`${base} · ${schema.logicalType}`:base;}
+      function schemaTitle(schema){if(schema&&typeof schema==='object'&&schema.name)return schema.name;return typeLabel(schema);}
+      async function readHeader(file){let size=Math.min(file.size,262144);while(size<=Math.min(file.size,8388608)){try{const bytes=new Uint8Array(await file.slice(0,size).arrayBuffer());const r=new Reader(bytes);if(String.fromCharCode(...r.take(4))!=='Obj\u0001')throw new Error('Missing Obj\\x01 magic');const metadata=decodeMapOfBytes(r);const sync=r.take(16);const schemaBytes=metadata.get('avro.schema');if(!schemaBytes)throw new Error('Missing avro.schema metadata');const schemaText=textDecoder.decode(schemaBytes);const schema=JSON.parse(schemaText);const codec=textDecoder.decode(metadata.get('avro.codec')||new Uint8Array()).trim()||'null';return {headerSize:r.pos,metadata,sync:new Uint8Array(sync),schemaText,schema,codec};}catch(e){if(size>=file.size||size>=8388608)throw e;size=Math.min(file.size,size*2);}}throw new Error('Header is too large');}
+      function sameBytes(a,b){if(a.length!==b.length)return false;for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;return true;}
+      async function readTwoLongs(file,offset){const bytes=new Uint8Array(await file.slice(offset,Math.min(file.size,offset+32)).arrayBuffer());const r=new Reader(bytes);return {count:r.longNumber(),size:r.longNumber(),headerBytes:r.pos};}
+      async function scanBlocks(file,header,onProgress){const blocks=[];let offset=header.headerSize,rowStart=0,index=0;while(offset<file.size){const h=await readTwoLongs(file,offset);if(h.count<=0||h.size<0)throw new Error('Invalid Avro block header');const dataOffset=offset+h.headerBytes;const syncOffset=dataOffset+h.size;if(syncOffset+16>file.size)throw new Error('Truncated Avro block');const sync=new Uint8Array(await file.slice(syncOffset,syncOffset+16).arrayBuffer());if(!sameBytes(sync,header.sync))throw new Error(`Sync marker mismatch at block ${index+1}`);blocks.push({index,count:h.count,size:h.size,offset,dataOffset,rowStart,rowEnd:rowStart+h.count});rowStart+=h.count;offset=syncOffset+16;index++;if(index%80===0){onProgress?.(Math.round(offset/file.size*100));await new Promise(requestAnimationFrame);}}return {blocks,totalRows:rowStart};}
+      function readVarUint(bytes,posObj){let v=0,shift=0;while(posObj.pos<bytes.length){const b=bytes[posObj.pos++];v|=(b&127)<<shift;if(!(b&128))return v>>>0;shift+=7;if(shift>28)throw new Error('Invalid Snappy length');}throw new Error('Truncated Snappy data');}
+      function snappyDecode(input){const p={pos:0};const expected=readVarUint(input,p);const out=new Uint8Array(expected);let o=0;while(p.pos<input.length&&o<expected){const tag=input[p.pos++],kind=tag&3;let len,off;if(kind===0){let n=tag>>>2;if(n<60)len=n+1;else{const extra=n-59;let x=0;for(let i=0;i<extra;i++)x|=input[p.pos++]<<(8*i);len=x+1;}if(p.pos+len>input.length||o+len>out.length)throw new Error('Invalid Snappy literal');out.set(input.subarray(p.pos,p.pos+len),o);p.pos+=len;o+=len;}else{if(kind===1){len=4+((tag>>>2)&7);off=((tag&0xe0)<<3)|input[p.pos++];}else if(kind===2){len=1+(tag>>>2);off=input[p.pos]|(input[p.pos+1]<<8);p.pos+=2;}else{len=1+(tag>>>2);off=(input[p.pos]|(input[p.pos+1]<<8)|(input[p.pos+2]<<16)|(input[p.pos+3]<<24))>>>0;p.pos+=4;}if(!off||off>o||o+len>out.length)throw new Error('Invalid Snappy copy');for(let i=0;i<len;i++)out[o+i]=out[o-off+i];o+=len;}}if(o!==expected)throw new Error('Snappy output length mismatch');return out;}
+      async function streamDecompress(bytes,format){if(typeof DecompressionStream!=='function')throw new Error(`Unsupported codec: ${format}`);let ds;try{ds=new DecompressionStream(format);}catch{throw new Error(`Unsupported codec: ${format}`);}const ab=await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();return new Uint8Array(ab);}
+      async function decodeCodec(codec,bytes){switch(codec){case 'null':return bytes;case 'deflate':return streamDecompress(bytes,'deflate-raw');case 'snappy':{if(bytes.length<4)throw new Error('Truncated snappy block');return snappyDecode(bytes.subarray(0,bytes.length-4));}case 'zstandard':case 'zstd':return streamDecompress(bytes,'zstd');default:throw new Error(`Unsupported codec: ${codec}`);}}
+      function cachePut(fs,index,records){fs.blockCache.set(index,records);fs.blockCacheOrder=fs.blockCacheOrder.filter(v=>v!==index);fs.blockCacheOrder.push(index);while(fs.blockCacheOrder.length>3){const old=fs.blockCacheOrder.shift();fs.blockCache.delete(old);}}
+      async function decodeBlock(fs,block){if(fs.blockCache.has(block.index))return fs.blockCache.get(block.index);const stored=new Uint8Array(await fs.file.slice(block.dataOffset,block.dataOffset+block.size).arrayBuffer());const bytes=await decodeCodec(fs.header.codec,stored);const r=new Reader(bytes),records=[];for(let i=0;i<block.count;i++)records.push(decodeDatum(fs.header.schema,r,fs.ctx,schemaNamespace(fs.header.schema,'')));cachePut(fs,block.index,records);return records;}
+      function valueForField(record,field){if(field.name==='__value')return record;return record&&typeof record==='object'?record[field.name]:undefined;}
+      async function readPage(fs){if(!fs.header)return;fs.loading=true;fs.dataError='';if(state.activeId===fs.id)renderData(fs);try{const start=(fs.page-1)*fs.pageSize,end=Math.min(fs.totalRows,start+fs.pageSize),rows=[];for(const block of fs.blocks){if(block.rowEnd<=start)continue;if(block.rowStart>=end)break;const recs=await decodeBlock(fs,block);const from=Math.max(0,start-block.rowStart),to=Math.min(block.count,end-block.rowStart);for(let i=from;i<to;i++)rows.push({recordNumber:block.rowStart+i+1,value:recs[i]});}fs.rows=rows;}catch(e){fs.rows=[];fs.dataError=e.message||String(e);}finally{fs.loading=false;if(state.activeId===fs.id){renderFileStatus(fs);renderData(fs);}}}
+      function getActiveFile(){return state.files.find(f=>f.id===state.activeId)||null;}
+      function makeId(){return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;}
+      function buildFileState(file){return {id:makeId(),file,header:null,blocks:[],totalRows:0,fields:[],ctx:null,page:1,pageSize:100,rows:[],viewMode:'table',hiddenFields:new Set(),sort:null,loading:false,error:'',dataError:'',inspection:'pending',inspectionProgress:null,outputFilename:`${basename(file.name)}-preview`,blockCache:new Map(),blockCacheOrder:[]};}
+      async function inspectFile(fs){fs.inspection='reading';fs.inspectionProgress=null;fs.error='';fs.dataError='';fs.header=null;fs.blocks=[];fs.totalRows=0;fs.fields=[];fs.ctx=null;fs.rows=[];if(state.activeId===fs.id)renderActive();try{const header=await readHeader(fs.file);fs.header=header;fs.ctx={names:buildNames(header.schema)};fs.fields=rootFields(header.schema);const scanned=await scanBlocks(fs.file,header,p=>{fs.inspectionProgress=p;if(state.activeId===fs.id)renderFileStatus(fs);});fs.blocks=scanned.blocks;fs.totalRows=scanned.totalRows;fs.inspection='ready';fs.inspectionProgress=100;await readPage(fs);}catch(e){fs.inspection='error';fs.inspectionProgress=null;fs.error=e.message||String(e);fs.header=null;fs.blocks=[];fs.totalRows=0;fs.fields=[];fs.ctx=null;fs.rows=[];}if(state.activeId===fs.id)renderActive();}
+      async function addFiles(list){const incoming=Array.from(list||[]),supported=[];for(const file of incoming){if(!/\.avro$/i.test(file.name)){toast(t('invalidAvro'));continue;}supported.push(file);}if(!supported.length)return;const added=supported.map(buildFileState);state.files.push(...added);state.activeId=added[0].id;setLoadedUi(true);renderFileManager();renderActive();for(const fs of added){await inspectFile(fs);renderFileManager();}renderActive();}
+      function activateFile(id){if(!state.files.some(f=>f.id===id))return;state.activeId=id;renderActive();const fs=getActiveFile();if(fs?.header&&!fs.rows.length&&!fs.loading&&!fs.dataError)readPage(fs);}
+      function closeFile(id){const idx=state.files.findIndex(f=>f.id===id);if(idx<0)return;state.files.splice(idx,1);if(state.activeId===id)state.activeId=state.files[Math.max(0,idx-1)]?.id||state.files[0]?.id||null;renderActive();}
+      function setLoadedUi(loaded){$('#emptyState').style.display=loaded?'none':'block';$('#content').classList.toggle('show',loaded);$('#fileManager').classList.toggle('show',loaded);$('#mobileBottomBar').classList.toggle('show',loaded);document.body.classList.toggle('has-mobile-bar',loaded);}
+      function renderFileManager(){const tabs=$('#fileTabs'),select=$('#fileSelect');tabs.replaceChildren();select.replaceChildren();for(const fs of state.files){const tab=document.createElement('div');tab.className=`file-tab${fs.id===state.activeId?' active':''}`;tab.tabIndex=0;tab.setAttribute('role','button');tab.setAttribute('aria-current',fs.id===state.activeId?'true':'false');const name=document.createElement('span');name.className='file-tab-name';name.textContent=fs.file.name;name.title=fs.file.name;const close=document.createElement('button');close.type='button';close.className='file-tab-close';close.setAttribute('aria-label',`${t('close')} ${fs.file.name}`);close.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>';close.addEventListener('click',e=>{e.stopPropagation();closeFile(fs.id);});tab.append(name,close);tab.addEventListener('click',()=>activateFile(fs.id));tab.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();activateFile(fs.id);}});tabs.append(tab);const opt=document.createElement('option');opt.value=fs.id;opt.textContent=fs.file.name;opt.selected=fs.id===state.activeId;select.append(opt);}}
+      function summaryCard(label,value,extraClass=''){const d=document.createElement('div');d.className='summary-card';const a=document.createElement('span');a.className='summary-label';a.textContent=label;const b=document.createElement('span');b.className=`summary-value${extraClass?` ${extraClass}`:''}`;b.textContent=value;d.append(a,b);return d;}
+      function renderOverview(fs){const grid=$('#summaryGrid'),details=$('#detailsGrid');grid.replaceChildren();details.replaceChildren();$('#metadataWrap').replaceChildren();$('#blocksWrap').replaceChildren();if(!fs?.header){$('#activeFileSubtitle').textContent=fs?.file.name||'';$('#schemaSubtitle').textContent=t('fieldCount',{count:0});renderSchema(fs);return;}$('#activeFileSubtitle').textContent=`${fs.file.name} · ${formatBytes(fs.file.size)}`;grid.append(summaryCard(t('records'),formatNumber(fs.totalRows)),summaryCard(t('fields'),formatNumber(fs.fields.length)),summaryCard(t('blocks'),formatNumber(fs.blocks.length)),summaryCard(t('codec'),fs.header.codec,codecSupportedHint(fs.header.codec)?'':'unsupported-codec'));const dg=[['fileSize',formatBytes(fs.file.size)],['schemaName',schemaTitle(fs.header.schema)],['headerSize',formatBytes(fs.header.headerSize)],['modified',new Date(fs.file.lastModified).toLocaleString(state.language==='ja'?'ja-JP':'en-US')]];for(const [key,val] of dg){const item=document.createElement('div');item.className='detail-row';item.innerHTML=`<span class="detail-label">${escapeHtml(t(key))}</span><strong class="detail-value">${escapeHtml(val)}</strong>`;details.append(item);}renderMetadata(fs);renderBlocks(fs);$('#schemaSubtitle').textContent=t('fieldCount',{count:formatNumber(fs.fields.length)});renderSchema(fs);}
+      function codecSupportedHint(codec){return ['null','deflate','snappy'].includes(codec)||['zstandard','zstd'].includes(codec)&&typeof DecompressionStream==='function';}
+      function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+      function metadataDisplay(key,value){if(key==='avro.schema')return t('avroSchemaShown');if(key==='avro.codec')return textDecoder.decode(value)||'null';const text=textDecoder.decode(value);const replacement=(text.match(/\uFFFD/g)||[]).length;return replacement>2?bytesToHex(value,64):text;}
+      function renderMetadata(fs){const wrap=$('#metadataWrap');const table=document.createElement('table');table.className='mini-table';table.innerHTML=`<thead><tr><th>${escapeHtml(t('keyHeader'))}</th><th>${escapeHtml(t('valueHeader'))}</th></tr></thead>`;const tb=document.createElement('tbody');for(const [k,v] of fs.header.metadata){const tr=document.createElement('tr');const a=document.createElement('td');a.className='mini-key';a.textContent=k;const b=document.createElement('td');b.className='mini-value';b.textContent=metadataDisplay(k,v);tr.append(a,b);tb.append(tr);}table.append(tb);wrap.append(table);$('#metadataCount').textContent=t('metadataCount',{count:formatNumber(fs.header.metadata.size)});}
+      function renderBlocks(fs){const wrap=$('#blocksWrap');if(!fs.blocks.length){wrap.textContent='—';return;}const table=document.createElement('table');table.className='mini-table';table.innerHTML=`<thead><tr><th>#</th><th>${escapeHtml(t('blockRecords'))}</th><th>${escapeHtml(t('compressedBytes'))}</th><th>${escapeHtml(t('blockOffset'))}</th></tr></thead>`;const tb=document.createElement('tbody');for(const b of fs.blocks.slice(0,500)){const tr=document.createElement('tr');for(const val of [b.index+1,formatNumber(b.count),formatBytes(b.size),formatNumber(b.offset)]){const td=document.createElement('td');td.textContent=val;tr.append(td);}tb.append(tr);}table.append(tb);wrap.append(table);$('#blocksCount').textContent=t('blockCount',{count:formatNumber(fs.blocks.length)});}
+      function schemaNode(schema,label,parent,ns='',depth=0){const resolved=resolveSchema(schema,getActiveFile()?.ctx||{names:new Map()},ns);const node=document.createElement('div');node.className='schema-node';const row=document.createElement('div');row.className='schema-row';const name=document.createElement('span');name.className='schema-name';name.textContent=label;const badge=document.createElement('span');badge.className='schema-type';badge.textContent=typeLabel(resolved).split(' · ')[0];row.append(name,badge);if(resolved&&typeof resolved==='object'&&!Array.isArray(resolved)&&resolved.logicalType){const logical=document.createElement('span');logical.className='schema-logical';logical.textContent=resolved.logicalType;row.append(logical);}node.append(row);const children=document.createElement('div');children.className='schema-children';let has=false;if(Array.isArray(resolved)){resolved.forEach((s,i)=>{schemaNode(s,`[${i}]`,children,ns,depth+1);has=true;});}else if(resolved&&typeof resolved==='object'){const type=resolved.type;if(type==='record'){const cns=schemaNamespace(resolved,ns);for(const f of resolved.fields||[]){schemaNode(f.type,f.name,children,cns,depth+1);has=true;}}else if(type==='array'){schemaNode(resolved.items,'items',children,ns,depth+1);has=true;}else if(type==='map'){schemaNode(resolved.values,'values',children,ns,depth+1);has=true;}else if(Array.isArray(type)){schemaNode(type,'union',children,ns,depth+1);has=true;}}if(has)node.append(children);parent.append(node);}
+      function renderSchema(fs){const tree=$('#schemaTree'),raw=$('#schemaRaw');tree.replaceChildren();raw.textContent='';if(!fs?.header)return;schemaNode(fs.header.schema,schemaTitle(fs.header.schema),tree,schemaNamespace(fs.header.schema,''));raw.textContent=JSON.stringify(fs.header.schema,null,2);}
+      function visibleFields(fs){return fs.fields.filter(f=>!fs.hiddenFields.has(f.index));}
+      function renderTable(fs){const wrap=$('#dataTableWrap');wrap.replaceChildren();if(!fs.rows.length){const d=document.createElement('div');d.className='table-empty';d.textContent=t('noRecords');wrap.append(d);return;}const fields=visibleFields(fs);const table=document.createElement('table');table.className='data-table';const thead=document.createElement('thead'),tr=document.createElement('tr');const rn=document.createElement('th');rn.textContent='#';tr.append(rn);for(const field of fields){const th=document.createElement('th');th.className='sortable';th.textContent=field.name;th.addEventListener('click',()=>sortByField(fs,field));tr.append(th);}thead.append(tr);table.append(thead);const tb=document.createElement('tbody');for(const row of sortedRows(fs)){const rr=document.createElement('tr');const n=document.createElement('td');n.className='line-number';n.textContent=formatNumber(row.recordNumber);rr.append(n);for(const field of fields){const value=valueForField(row.value,field);const td=document.createElement('td');td.className='data-cell';if(value===null){const span=document.createElement('span');span.className='null-badge';span.textContent='null';td.append(span);}else{td.textContent=cellText(value);if(typeof value==='object'&&value!==null)td.classList.add('complex-cell');}td.tabIndex=0;td.addEventListener('click',()=>openCell(row,field.name,value));td.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openCell(row,field.name,value);}});rr.append(td);}tb.append(rr);}table.append(tb);wrap.append(table);}
+      function renderRecords(fs){const list=$('#recordList');list.replaceChildren();if(!fs.rows.length){const d=document.createElement('div');d.className='table-empty';d.textContent=t('noRecords');list.append(d);return;}for(const row of sortedRows(fs)){const details=document.createElement('details');details.className='record-card';const summary=document.createElement('summary');const line=document.createElement('span');line.className='record-line';line.textContent=t('recordNo',{n:formatNumber(row.recordNumber)});const brief=document.createElement('span');brief.className='record-summary-text';brief.textContent=cellText(row.value).slice(0,160);summary.append(line,brief);const pre=document.createElement('pre');pre.className='record-pre';pre.textContent=prettyValue(row.value);details.append(summary,pre);list.append(details);}}
+      function sortedRows(fs){if(!fs.sort)return fs.rows;const rows=[...fs.rows],field=fs.sort.field,dir=fs.sort.dir;rows.sort((a,b)=>{const x=valueForField(a.value,field),y=valueForField(b.value,field);if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;const sx=typeof x==='object'?cellText(x):x,sy=typeof y==='object'?cellText(y):y;return (sx<sy?-1:sx>sy?1:0)*dir;});return rows;}
+      function sortByField(fs,field){if(!fs.sort||fs.sort.field.index!==field.index)fs.sort={field,dir:1};else if(fs.sort.dir===1)fs.sort.dir=-1;else fs.sort=null;renderData(fs);}
+      function renderPagination(fs){const total=fs.totalRows,pages=Math.max(1,Math.ceil(total/fs.pageSize)),start=total?(fs.page-1)*fs.pageSize+1:0,end=Math.min(total,fs.page*fs.pageSize);$('#pageRangeLabel').textContent=t('recordsRange',{start:formatNumber(start),end:formatNumber(end),total:formatNumber(total)});$('#pageInfo').textContent=t('pageOf',{page:formatNumber(fs.page),pages:formatNumber(pages)});$('#pageJump').value=String(fs.page);$('#pageJump').max=String(pages);$('#prevButton').disabled=fs.page<=1;$('#nextButton').disabled=fs.page>=pages;}
+      function renderData(fs){if(!fs)return;renderPagination(fs);$('#pageSizeSelect').value=String(fs.pageSize);$('#outputFilename').value=fs.outputFilename;$('#tableModeButton').classList.toggle('active',fs.viewMode==='table');$('#recordModeButton').classList.toggle('active',fs.viewMode==='record');$('#columnsButton').hidden=fs.viewMode!=='table';$('#dataLoading').classList.toggle('show',fs.loading);$('#dataTableWrap').classList.toggle('data-view-hidden',fs.loading||fs.viewMode!=='table');$('#recordList').classList.toggle('data-view-hidden',fs.loading||fs.viewMode!=='record');if(fs.loading)return;if(fs.viewMode==='table')renderTable(fs);else renderRecords(fs);}
+      function openCell(row,fieldName,value){$('#cellLine').textContent=formatNumber(row.recordNumber);$('#cellField').textContent=fieldName;$('#cellType').textContent=typeOfValue(value);const text=prettyValue(value);$('#cellValue').textContent=text||t('empty');state.activeCellText=text;$('#cellDialog').showModal();}
+      function renderColumnsDialog(fs){const list=$('#columnsList');list.replaceChildren();for(const field of fs.fields){const label=document.createElement('label');label.className='column-option';const input=document.createElement('input');input.type='checkbox';input.checked=!fs.hiddenFields.has(field.index);input.dataset.index=String(field.index);const span=document.createElement('span');span.textContent=field.name;label.append(input,span);list.append(label);}}
+      function csvEscape(value){const text=String(value??'');return /[",\r\n]/.test(text)?`"${text.replaceAll('"','""')}"`:text;}
+      function buildCurrentCsv(fs){const fields=visibleFields(fs),lines=[];lines.push(['__record',...fields.map(f=>f.name)].map(csvEscape).join(','));for(const row of sortedRows(fs)){lines.push([row.recordNumber,...fields.map(f=>cellText(valueForField(row.value,f)))].map(csvEscape).join(','));}return lines.join('\r\n');}
+      function normalizedFilenameBase(){const fs=getActiveFile(),fallback=fs?`${basename(fs.file.name)}-preview`:APP_CONFIG.slug,input=$('#outputFilename');let base=input.value.trim().replace(/[\\/:*?"<>|\u0000-\u001f]/g,'-').replace(/\.+$/g,'').trim().replace(/\.csv$/i,'')||fallback;if(/^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i.test(base))base=`${base}-file`;base=base.slice(0,120);input.value=base;if(fs)fs.outputFilename=base;return base;}
+      async function copyText(text){try{await navigator.clipboard.writeText(text);return true;}catch{const area=document.createElement('textarea');area.value=text;area.style.position='fixed';area.style.left='-9999px';document.body.append(area);area.select();const ok=document.execCommand('copy');area.remove();return ok;}}
+      async function copyCsv(){const fs=getActiveFile();if(!fs)return;try{toast(t(await copyText(buildCurrentCsv(fs))?'csvCopied':'copyFailed'));}catch{toast(t('csvFailed'));}}
+      function downloadCsv(){const fs=getActiveFile();if(!fs)return;try{const url=URL.createObjectURL(new Blob(['\uFEFF',buildCurrentCsv(fs)],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=`${normalizedFilenameBase()}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(t('csvDownloaded'));}catch{toast(t('csvFailed'));}}
+      function renderFileStatus(fs){if(!fs){setStatus('');return;}if(fs.inspection==='reading'){const progress=Number.isFinite(fs.inspectionProgress)?` ${fs.inspectionProgress}%`:'';setStatus(`${t('statusReading',{name:fs.file.name})}${progress}`);return;}if(fs.inspection==='error'&&!fs.header){setStatus(`${t('invalidAvro')} ${fs.error}`,'error');return;}if(fs.header&&fs.dataError){setStatus(fs.dataError.startsWith('Unsupported codec:')?t('unsupportedCodec',{codec:fs.header.codec}):`${t('readFailed')} ${fs.dataError}`,'error');return;}if(fs.inspection==='pending'){setStatus(t('statusPending'));return;}if(fs.header){setStatus(t('statusReady'));return;}setStatus('');}
+      function renderActive(){const fs=getActiveFile();setLoadedUi(Boolean(fs));renderFileManager();if(!fs){setStatus('');return;}renderFileStatus(fs);renderOverview(fs);renderData(fs);}
+      function applyLanguage(){document.documentElement.lang=state.language;$$('[data-i18n]').forEach(el=>{el.textContent=t(el.dataset.i18n);});$$('[data-i18n-title]').forEach(el=>{el.title=t(el.dataset.i18nTitle);});$$('[data-i18n-aria-label]').forEach(el=>{el.setAttribute('aria-label',t(el.dataset.i18nAriaLabel));});$('#languageButton').textContent=state.language==='ja'?'EN':'日本語';document.title=state.language==='ja'?APP_CONFIG.nameJa:APP_CONFIG.name;$('#brandName').textContent=state.language==='ja'?APP_CONFIG.nameJa:APP_CONFIG.name;$('#footerText').textContent=t('footer',{version:APP_CONFIG.version});renderActive();}
+      function setMobilePage(page){state.mobilePage=page;$$('.app-page').forEach(el=>el.classList.toggle('mobile-active',el.dataset.mobilePage===page));$$('.mobile-nav-button').forEach(btn=>btn.classList.toggle('active',btn.dataset.mobileTarget===page));window.scrollTo({top:0,behavior:'smooth'});}
+      function closeDialogOnBackdrop(dialog){dialog.addEventListener('click',event=>{const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)dialog.close();});}
+      $('#chooseButton').addEventListener('click',e=>{e.stopPropagation();$('#fileInput').click();});$('#addFilesButton').addEventListener('click',()=>$('#fileInput').click());$('#fileInput').addEventListener('change',async e=>{await addFiles(e.target.files);e.target.value='';});const dz=$('#dropzone');['dragenter','dragover'].forEach(type=>dz.addEventListener(type,e=>{e.preventDefault();dz.classList.add('dragover');}));['dragleave','drop'].forEach(type=>dz.addEventListener(type,e=>{e.preventDefault();dz.classList.remove('dragover');}));dz.addEventListener('click',()=>$('#fileInput').click());dz.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('#fileInput').click();}});document.addEventListener('dragover',e=>{if(e.dataTransfer?.types?.includes('Files'))e.preventDefault();});document.addEventListener('drop',async e=>{if(!e.dataTransfer?.files?.length)return;e.preventDefault();dz.classList.remove('dragover');await addFiles(Array.from(e.dataTransfer.files));});$('#fileSelect').addEventListener('change',e=>activateFile(e.target.value));
+      $('#pageSizeSelect').addEventListener('change',async e=>{const fs=getActiveFile();if(!fs)return;fs.pageSize=Number(e.target.value);fs.page=1;fs.sort=null;await readPage(fs);});$('#prevButton').addEventListener('click',async()=>{const fs=getActiveFile();if(!fs||fs.page<=1)return;fs.page--;fs.sort=null;await readPage(fs);});$('#nextButton').addEventListener('click',async()=>{const fs=getActiveFile();if(!fs)return;const pages=Math.max(1,Math.ceil(fs.totalRows/fs.pageSize));if(fs.page>=pages)return;fs.page++;fs.sort=null;await readPage(fs);});$('#pageJump').addEventListener('change',async e=>{const fs=getActiveFile();if(!fs)return;const pages=Math.max(1,Math.ceil(fs.totalRows/fs.pageSize));fs.page=Math.min(pages,Math.max(1,parseInt(e.target.value,10)||1));fs.sort=null;await readPage(fs);});
+      $('#tableModeButton').addEventListener('click',()=>{const fs=getActiveFile();if(fs){fs.viewMode='table';renderData(fs);}});$('#recordModeButton').addEventListener('click',()=>{const fs=getActiveFile();if(fs){fs.viewMode='record';renderData(fs);}});$('#schemaTreeButton').addEventListener('click',()=>{state.schemaView='tree';$('#schemaTreeButton').classList.add('active');$('#schemaRawButton').classList.remove('active');$('#schemaTree').classList.remove('schema-view-hidden');$('#schemaRaw').classList.add('schema-view-hidden');});$('#schemaRawButton').addEventListener('click',()=>{state.schemaView='raw';$('#schemaRawButton').classList.add('active');$('#schemaTreeButton').classList.remove('active');$('#schemaRaw').classList.remove('schema-view-hidden');$('#schemaTree').classList.add('schema-view-hidden');});$('#copySchemaButton').addEventListener('click',async()=>{const fs=getActiveFile();if(fs)toast(t(await copyText(fs.header.schemaText)?'schemaCopied':'copyFailed'));});
+      $('#columnsButton').addEventListener('click',()=>{const fs=getActiveFile();if(!fs)return;renderColumnsDialog(fs);$('#columnsDialog').showModal();});$('#closeColumnsButton').addEventListener('click',()=>$('#columnsDialog').close());$('#showAllColumnsButton').addEventListener('click',()=>$$('#columnsList input').forEach(i=>i.checked=true));$('#applyColumnsButton').addEventListener('click',()=>{const fs=getActiveFile();if(!fs)return;fs.hiddenFields.clear();$$('#columnsList input').forEach(i=>{if(!i.checked)fs.hiddenFields.add(Number(i.dataset.index));});$('#columnsDialog').close();renderData(fs);});
+      $('#outputFilename').addEventListener('input',e=>{const fs=getActiveFile();if(fs)fs.outputFilename=e.target.value;});$('#outputFilename').addEventListener('blur',normalizedFilenameBase);$('#copyCsvButton').addEventListener('click',copyCsv);$('#downloadCsvButton').addEventListener('click',downloadCsv);$('#languageButton').addEventListener('click',()=>{state.language=state.language==='ja'?'en':'ja';writeStorage(storageKey,state.language);applyLanguage();});const help=$('#helpDialog');$('#helpButton').addEventListener('click',()=>help.showModal());$('#closeHelpButton').addEventListener('click',()=>help.close());closeDialogOnBackdrop(help);const cell=$('#cellDialog');$('#closeCellButton').addEventListener('click',()=>cell.close());$('#copyCellButton').addEventListener('click',async()=>toast(t(await copyText(state.activeCellText)?'valueCopied':'copyFailed')));closeDialogOnBackdrop(cell);closeDialogOnBackdrop($('#columnsDialog'));$$('.mobile-nav-button').forEach(b=>b.addEventListener('click',()=>setMobilePage(b.dataset.mobileTarget)));
+      $('#versionBadge').textContent=`v${APP_CONFIG.version}`;setLoadedUi(false);applyLanguage();
+    })();
+  </script>
+</body>
+</html>
