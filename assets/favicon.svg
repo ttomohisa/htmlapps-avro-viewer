@@ -1,8 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AVRO Viewer">
-  <path d="M15 5h25l13 13v31a7 7 0 0 1-7 7H15a7 7 0 0 1-7-7V12a7 7 0 0 1 7-7Z" fill="#fff" stroke="#16624F" stroke-width="5" stroke-linejoin="round"/>
-  <path d="M40 5v13h13" fill="none" stroke="#16624F" stroke-width="5" stroke-linejoin="round"/>
-  <rect x="3" y="27" width="40" height="18" rx="4" fill="#16624F"/>
-  <text x="23.0" y="40.4" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="12.8" font-weight="800" text-anchor="middle" letter-spacing="-.3">AVRO</text>
-  <circle cx="47" cy="47" r="8.5" fill="#fff" stroke="#16624F" stroke-width="5"/>
-  <path d="m53.2 53.2 7 7" fill="none" stroke="#16624F" stroke-width="5" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Avro Viewer">
+  <rect x="0" y="0" width="64" height="64" rx="16" fill="#16624F"/>
+  <path d="M13 5h23l12 12v32a7 7 0 0 1-7 7H13a7 7 0 0 1-7-7V12a7 7 0 0 1 7-7Z" fill="#fff" stroke="#16624F" stroke-width="4.5" stroke-linejoin="round"/>
+  <path d="M36 5v12h12" fill="none" stroke="#16624F" stroke-width="4.5" stroke-linejoin="round"/>
+  <rect x="4" y="27" width="34" height="18" rx="4" fill="#16624F"/>
+  <text x="21" y="40.4" fill="#fff" font-family="Arial,Helvetica,sans-serif" font-size="12.8" font-weight="800" text-anchor="middle" letter-spacing="-0.2">AVRO</text>
+  <circle cx="48" cy="48" r="6.8" fill="none" stroke="#fff" stroke-width="3.4"/>
+  <path d="m52.8 52.8 4.7 4.7" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/>
 </svg>
