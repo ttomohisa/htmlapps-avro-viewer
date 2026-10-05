@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Preserve complete byte and fixed values, including nested values, in current-page CSV, expanded Record view, Cell Inspector, and Copy value while keeping table previews compact.
+- Treat a real `__value` record field independently of the synthetic non-record root column.
+- Add tiny Avro container regression tests for decoding, formatting, field selection, export ordering/visibility, and readable/self-extract/root release parity.
+
 ## v1.0.0 - 2026-09-04
 
 - First stable release.
