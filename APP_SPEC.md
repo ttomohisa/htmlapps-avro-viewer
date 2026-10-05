@@ -14,7 +14,11 @@ Open Apache Avro Object Container Files locally and inspect their schema, metada
 - Allow additional `.avro` drag and drop while files are already open.
 - Parse the Avro header and embedded `avro.schema`.
 - Show record count, root fields, block count, codec, file size, header size, and custom metadata.
-- Show schema as a hierarchical tree or raw JSON.
+- Show schema as a hierarchical tree or raw JSON. Recursive named references terminate in a labeled reference leaf; repeated noncyclic references still expand in each location.
+- Populate Raw JSON independently of tree rendering, and copy the original embedded schema text without changing its bytes or formatting.
+- Compound schema nodes use native keyboard-accessible disclosures, initially expanded, with Japanese/English Expand all and Collapse all controls. Primitive and recursive-reference leaves do not expand.
+- Expansion state is transient and independent per open file, survives file/Tree/Raw/language switches, and resets when the file is reopened. Late toggle events must not change another file or replace newer state.
+- Tree controls are disabled in Raw view and when no compound schema is available. Copy schema is disabled without a parsed header.
 - Show block record counts, stored byte sizes, and offsets.
 - Preview records with 50 / 100 / 250 / 500 / 1,000 rows per page.
 - Decode only blocks needed for the current page and cache a small number of recent blocks.

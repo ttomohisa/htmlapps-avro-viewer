@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Add keyboard-accessible schema branch disclosures and Japanese/English Expand all / Collapse all controls, with independent transient state for each open file.
+- Stop self-recursive and mutually recursive named schemas at labeled reference leaves instead of overflowing the call stack; preserve repeated nonrecursive references.
+- Populate Raw schema independently of tree rendering, preserve original schema copying, and cover schema/file/view/language state across all release variants.
+
 - Preserve complete byte and fixed values, including nested values, in current-page CSV, expanded Record view, Cell Inspector, and Copy value while keeping table previews compact.
 - Treat a real `__value` record field independently of the synthetic non-record root column.
 - Add tiny Avro container regression tests for decoding, formatting, field selection, export ordering/visibility, and readable/self-extract/root release parity.
