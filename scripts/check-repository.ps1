@@ -229,6 +229,8 @@ if ($ForceDownload) { $buildArguments.ForceDownload = $true }
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw "Node.js 24 or later is required for Avro value regression tests." }
 & node (Join-Path $Root "scripts/test-avro-values.cjs")
 if ($LASTEXITCODE -ne 0) { throw "Avro value regression tests failed." }
+& node (Join-Path $Root "scripts/test-avro-schema.cjs")
+if ($LASTEXITCODE -ne 0) { throw "Avro schema regression tests failed." }
 
 Write-Host "[OK] Repository check passed." -ForegroundColor Green
 

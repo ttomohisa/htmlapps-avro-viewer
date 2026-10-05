@@ -19,7 +19,7 @@ GitHub Pages delivers the initial HTML. After it loads, selected files are read 
 ## Features
 
 - **Inspect Avro container structure** — Read the embedded schema, file metadata, codec, record count, and block layout.
-- **Review schema as Tree or Raw JSON** — Navigate nested record, enum, fixed, array, map, union, and named-reference schemas.
+- **Review schema as Tree or Raw JSON** — Expand or collapse nested record, array, map, and union branches individually or together. Each open file remembers its expansion state. Recursive named references appear as finite labeled leaves; Raw JSON and Copy schema retain the complete schema.
 - **Decode only the blocks you need** — Load blocks overlapping the current page instead of materializing the entire file at once.
 - **Understand common logical types** — Render common date, timestamp, time-millis, and decimal values in a readable form.
 - **Handle common Avro codecs** — Support `null`, `deflate`, and `snappy`; try `zstandard` when the browser exposes a compatible decoder.
@@ -52,7 +52,7 @@ Python, Node.js, and a local web server are not required. The builder uses Windo
 
 1. Add one or more `.avro` Object Container Files.
 2. Review record count, codec, block count, file size, and custom metadata.
-3. Inspect the embedded schema as Tree or Raw JSON.
+3. Inspect the embedded schema as Tree or Raw JSON. Use the branch arrows or Expand all / Collapse all to focus on the relevant fields; Copy schema copies the original embedded schema text.
 4. Browse records with the paging controls. Only blocks needed for the current page are decoded.
 5. Switch between Table and Record views, then open Cell Inspector for full nested values when needed.
 6. Copy or save the current page as CSV.
@@ -94,7 +94,7 @@ build-standalone.bat
 
 Repository checks can also be run directly:
 
-The repository check requires Node.js 24 or later and exercises tiny Avro fixtures against source, readable HTML, the decoded self-extract payload, and `avro-viewer.html`. After changing source, rebuild and refresh the tracked alias with `Copy-Item dist/index.html avro-viewer.html`, then run the repository check. These are source-level tests; browser interactions still need separate verification.
+The repository check requires Node.js 24 or later and exercises tiny synthetic Avro fixtures for complete values/exports, recursive schemas, native disclosure structure, per-file expansion state, language/view switches, and original schema copying against source, readable HTML, the decoded self-extract payload, and `avro-viewer.html`. After changing source, rebuild and refresh the tracked alias with `Copy-Item dist/index.html avro-viewer.html`, then run the repository check. These are source-level tests; browser interactions still need separate verification.
 
 ```powershell
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-repository.ps1

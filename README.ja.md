@@ -19,7 +19,7 @@ GitHub Pagesから最初のHTMLを読み込んだ後、選択したファイル�
 ## 主な機能
 
 - **Avroコンテナ構造を確認** — 埋め込みスキーマ、ファイルメタデータ、Codec、レコード数、ブロック構成を確認できます。
-- **SchemaをTree / Rawで確認** — record / enum / fixed / array / map / union / named referenceを含むネスト構造を確認できます。
+- **SchemaをTree / Rawで確認** — record / array / map / unionの枝を個別または一括で開閉でき、開閉状態はファイルごとに保持します。再帰型は参照先を表示し、Raw JSONとスキーマのコピーは完全なスキーマを保持します。
 - **必要なブロックだけデコード** — ファイル全体を一括展開せず、現在ページに重なるブロックだけ読み込みます。
 - **主要なLogical Typeを読みやすく表示** — date / timestamp / time-millis / decimalなどを人が確認しやすい値で表示します。
 - **一般的なCodecに対応** — `null` / `deflate` / `snappy` に対応し、ブラウザに対応デコーダーがある場合は `zstandard` も試します。
@@ -52,7 +52,7 @@ Python、Node.js、ローカルWebサーバーは不要です。Windows PowerShe
 
 1. `.avro` Object Container Fileを1つ以上追加します。
 2. レコード数、Codec、ブロック数、ファイルサイズ、カスタムメタデータを確認します。
-3. 埋め込みSchemaをTree / Rawで確認します。
+3. 埋め込みSchemaをTree / Rawで確認します。項目の矢印や「すべて展開 / すべて折りたたむ」で必要な部分に絞れます。スキーマのコピーは元の埋め込みテキストを保持します。
 4. ページ操作でレコードを確認します。現在ページに必要なブロックだけデコードされます。
 5. Table / Recordを切り替え、ネスト値は必要に応じてCell Inspectorで確認します。
 6. 現在ページをCSVとしてコピーまたは保存します。
@@ -94,7 +94,7 @@ build-standalone.bat
 
 リポジトリ検査だけを直接実行する場合：
 
-リポジトリ検査にはNode.js 24以降が必要です。小さなAvroデータを使い、ソース・可読版・Self-extractの復元内容・`avro-viewer.html`を検査します。ソース変更後はビルドし、`Copy-Item dist/index.html avro-viewer.html`で配布用コピーを更新してからリポジトリ検査を実行してください。これはソースレベルの検査であり、ブラウザー操作は別途確認が必要です。
+リポジトリ検査にはNode.js 24以降が必要です。小さな合成Avroデータを使い、完全な値とCSV、再帰スキーマ、開閉UIの構造、ファイル別の開閉状態、言語・表示切り替え、元スキーマのコピーについて、ソース・可読版・Self-extractの復元内容・`avro-viewer.html`で検査します。ソース変更後はビルドし、`Copy-Item dist/index.html avro-viewer.html`で配布用コピーを更新してからリポジトリ検査を実行してください。これはソースレベルの検査であり、ブラウザー操作は別途確認が必要です。
 
 ```powershell
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-repository.ps1
