@@ -225,6 +225,11 @@ $buildArguments = @{}
 if ($ForceDownload) { $buildArguments.ForceDownload = $true }
 & (Join-Path $Root "build-standalone.ps1") @buildArguments
 
+# Run the same export regressions against source and every generated release entry point.
+if (-not (Get-Command node -ErrorAction SilentlyContinue)) { throw "Node.js 24 or later is required for Avro value regression tests." }
+& node (Join-Path $Root "scripts/test-avro-values.cjs")
+if ($LASTEXITCODE -ne 0) { throw "Avro value regression tests failed." }
+
 Write-Host "[OK] Repository check passed." -ForegroundColor Green
 
 # WebRTC readiness DataChannel regression

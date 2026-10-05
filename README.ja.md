@@ -23,7 +23,7 @@ GitHub Pagesから最初のHTMLを読み込んだ後、選択したファイル�
 - **必要なブロックだけデコード** — ファイル全体を一括展開せず、現在ページに重なるブロックだけ読み込みます。
 - **主要なLogical Typeを読みやすく表示** — date / timestamp / time-millis / decimalなどを人が確認しやすい値で表示します。
 - **一般的なCodecに対応** — `null` / `deflate` / `snappy` に対応し、ブラウザに対応デコーダーがある場合は `zstandard` も試します。
-- **現在ページを確認・出力** — Table / Record、表示列、現在ページソート、Cell Inspector、CSVコピー／保存に対応します。
+- **現在ページを確認・出力** — Table / Record、表示列、現在ページソート、Cell Inspector、CSVコピー／保存に対応します。表のバイト値は短く表示し、CSV・Record詳細・Cell Inspector／値をコピーでは、入れ子の`bytes`や`fixed`も含めて全バイトを空白区切りの16進数で出力します。`__value`という名前の通常のレコードフィールドも正しく扱います。
 - **複数ファイルを安全に扱う** — 1ファイルが壊れていても他ファイルは開き、状態・Schema・Metadata・Blocks・Dataはタブごとに分離されます。
 
 ## すぐに使う
@@ -93,6 +93,8 @@ build-standalone.bat
 ```
 
 リポジトリ検査だけを直接実行する場合：
+
+リポジトリ検査にはNode.js 24以降が必要です。小さなAvroデータを使い、ソース・可読版・Self-extractの復元内容・`avro-viewer.html`を検査します。ソース変更後はビルドし、`Copy-Item dist/index.html avro-viewer.html`で配布用コピーを更新してからリポジトリ検査を実行してください。これはソースレベルの検査であり、ブラウザー操作は別途確認が必要です。
 
 ```powershell
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-repository.ps1

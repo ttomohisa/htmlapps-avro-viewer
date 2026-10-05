@@ -23,7 +23,7 @@ GitHub Pages delivers the initial HTML. After it loads, selected files are read 
 - **Decode only the blocks you need** — Load blocks overlapping the current page instead of materializing the entire file at once.
 - **Understand common logical types** — Render common date, timestamp, time-millis, and decimal values in a readable form.
 - **Handle common Avro codecs** — Support `null`, `deflate`, and `snappy`; try `zstandard` when the browser exposes a compatible decoder.
-- **Inspect and export current-page data** — Use Table / Record views, visible-column selection, sorting, Cell Inspector, and CSV copy/save.
+- **Inspect and export current-page data** — Use Table / Record views, visible-column selection, sorting, Cell Inspector, and CSV copy/save. Byte previews remain compact in tables; CSV, expanded records, and Cell Inspector / Copy value retain every byte in spaced hexadecimal, including nested `bytes` and `fixed` values. Record fields named `__value` work normally.
 - **Work with multiple files safely** — A broken file does not stop the remaining files, and each tab keeps its own status, schema, metadata, blocks, and data.
 
 ## Quick start
@@ -93,6 +93,8 @@ build-standalone.bat
 ```
 
 Repository checks can also be run directly:
+
+The repository check requires Node.js 24 or later and exercises tiny Avro fixtures against source, readable HTML, the decoded self-extract payload, and `avro-viewer.html`. After changing source, rebuild and refresh the tracked alias with `Copy-Item dist/index.html avro-viewer.html`, then run the repository check. These are source-level tests; browser interactions still need separate verification.
 
 ```powershell
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-repository.ps1
