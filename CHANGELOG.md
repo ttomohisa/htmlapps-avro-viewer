@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased
+## v1.0.1 - 2026-10-06
+
+- Standardize EN / JA header targets with localized accessible names and titles. Preserve the existing local-processing badge and Help localization.
+- Synchronize canonical metadata and standalone header versions at v1.0.1.
+- Add source, readable, root-download, and decompressed self-extract header regressions without changing responsive visibility.
+- Fix current-page decimal sorting with exact coefficient comparison for declared bytes/fixed decimals, named references, wrappers, and unambiguous nullable unions. Preserve display/CSV spelling, null-last order, stable ties, and existing string/mixed-union comparison.
+- Reproduce the browser-reported lexical-order defect with the original synthetic 205-record Avro file and cover precision, signs, scales, schema forms, and pagination across all release variants.
 
 - Add keyboard-accessible schema branch disclosures and Japanese/English Expand all / Collapse all controls, with independent transient state for each open file.
 - Stop self-recursive and mutually recursive named schemas at labeled reference leaves instead of overflowing the call stack; preserve repeated nonrecursive references.
