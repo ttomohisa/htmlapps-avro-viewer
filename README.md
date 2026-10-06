@@ -1,5 +1,7 @@
 # Avro Viewer
 
+The header uses EN / JA language targets with localized accessible names and Help titles; the version follows vMAJOR.MINOR.PATCH. The local-processing badge remains 完全ローカル処理 / Fully local processing.
+
 [![GitHub Pages](https://github.com/ttomohisa/htmlapps-avro-viewer/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/ttomohisa/htmlapps-avro-viewer/actions/workflows/deploy-pages.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Single HTML](https://img.shields.io/badge/distribution-single%20HTML-0ea5e9)](https://ttomohisa.github.io/htmlapps-avro-viewer/)
@@ -21,7 +23,7 @@ GitHub Pages delivers the initial HTML. After it loads, selected files are read 
 - **Inspect Avro container structure** — Read the embedded schema, file metadata, codec, record count, and block layout.
 - **Review schema as Tree or Raw JSON** — Expand or collapse nested record, array, map, and union branches individually or together. Each open file remembers its expansion state. Recursive named references appear as finite labeled leaves; Raw JSON and Copy schema retain the complete schema.
 - **Decode only the blocks you need** — Load blocks overlapping the current page instead of materializing the entire file at once.
-- **Understand common logical types** — Render common date, timestamp, time-millis, and decimal values in a readable form.
+- **Understand common logical types** — Render common date, timestamp, time-millis, and decimal values in a readable form. Declared decimal columns sort by exact numeric value on the current page, including nullable decimals and named fixed types, while preserving display/CSV text, stable ties, and nulls last in both directions. Strings retain text order; unions with multiple non-null branches retain the existing comparison because decoded values do not keep branch identity.
 - **Handle common Avro codecs** — Support `null`, `deflate`, and `snappy`; try `zstandard` when the browser exposes a compatible decoder.
 - **Inspect and export current-page data** — Use Table / Record views, visible-column selection, sorting, Cell Inspector, and CSV copy/save. Byte previews remain compact in tables; CSV, expanded records, and Cell Inspector / Copy value retain every byte in spaced hexadecimal, including nested `bytes` and `fixed` values. Record fields named `__value` work normally.
 - **Work with multiple files safely** — A broken file does not stop the remaining files, and each tab keeps its own status, schema, metadata, blocks, and data.
@@ -120,7 +122,7 @@ Apache Avro is an Apache Software Foundation project. This viewer implements par
 
 ## Dependencies
 
-Avro Viewer v1.0.0 does not bundle third-party runtime JavaScript libraries.
+Avro Viewer v1.0.1 does not bundle third-party runtime JavaScript libraries.
 
 See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for format/project notices.
 

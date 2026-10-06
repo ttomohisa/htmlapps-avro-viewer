@@ -33,7 +33,7 @@ function load(relative) {
     setTimeout() {}, toast() {}, t: key => key, formatNumber: String,
     basename: name => name.replace(/\.[^.]+$/, '')
   });
-  vm.runInContext('const textDecoder = new TextDecoder();\n' + source.slice(start, end) + '\nglobalThis.api = {readHeader,scanBlocks,decodeBlock,buildNames,rootFields,buildCurrentCsv,prettyValue,cellText,valueForField,openCell,renderRecords,copyCsv,downloadCsv,sortedRows};', context);
+  vm.runInContext('const textDecoder = new TextDecoder();\n' + source.slice(start, end) + '\nglobalThis.api = {readHeader,scanBlocks,decodeBlock,buildNames,rootFields,buildCurrentCsv,prettyValue,cellText,valueForField,openCell,renderRecords,copyCsv,downloadCsv,sortedRows,readPage};', context);
   return { ...context.api, state, output, elements };
 }
 
@@ -55,18 +55,136 @@ async function decode(api, schema, data) {
   const datum = Buffer.concat(data);
   const container = Buffer.concat([Buffer.from([79, 98, 106, 1]), metadata, sync, long(data.length), long(datum.length), datum, sync]);
   assert(container.length < 2048, 'regression fixtures stay tiny');
+  return decodeContainer(api, container);
+}
+
+async function decodeContainer(api, container, pageSize = 1000) {
   const file = new Blob([container]);
   file.name = 'example.avro';
   const header = await api.readHeader(file);
   const scanned = await api.scanBlocks(file, header);
-  const current = { id: 'test', file, header, ...scanned, ctx: { names: api.buildNames(header.schema) }, blockCache: new Map(), blockCacheOrder: [], fields: api.rootFields(header.schema), hiddenFields: new Set(), sort: null, rows: [] };
-  const values = await api.decodeBlock(current, current.blocks[0]);
-  current.rows = values.map((value, index) => ({ recordNumber: index + 1, value }));
+  const current = { id: 'test', file, header, ...scanned, ctx: { names: api.buildNames(header.schema) }, blockCache: new Map(), blockCacheOrder: [], fields: api.rootFields(header.schema), hiddenFields: new Set(), sort: null, rows: [], page: 1, pageSize };
+  api.state.activeId = null;
+  await api.readPage(current);
+  assert.equal(current.dataError, '', 'the actual Avro file decodes without error');
   api.state.files = [current]; api.state.activeId = current.id;
   return current;
 }
 
+
+// Signed big-endian coefficients are encoded as Avro bytes/fixed, never as
+// synthetic already-decoded decimal objects.
+function coefficientBytes(coefficient, width) {
+  let n = BigInt(coefficient), size = width || 1;
+  while (!width && (n < -(1n << BigInt(size * 8 - 1)) || n >= 1n << BigInt(size * 8 - 1))) size++;
+  assert(n >= -(1n << BigInt(size * 8 - 1)) && n < 1n << BigInt(size * 8 - 1));
+  if (n < 0n) n += 1n << BigInt(size * 8);
+  const result = Buffer.alloc(size);
+  for (let i = size - 1; i >= 0; i--) { result[i] = Number(n & 255n); n >>= 8n; }
+  return result;
+}
+const sortedRecordNumbers = (api, current) => Array.from(api.sortedRows(current), row => row.recordNumber);
+
 for (const target of targets) {
+  test(`${target}: browser regression fixture sorts decimal amounts numerically on each page`, async () => {
+    const api = load(target);
+    const current = await decodeContainer(api, fs.readFileSync(path.join(__dirname, 'fixtures/avro-known-205.avro')), 100);
+    assert.equal(current.totalRows, 205);
+    assert.equal(current.blocks.length, 3);
+    const field = current.fields.find(f => f.name === 'amount');
+    assert.deepEqual({ ...field.type }, { type: 'bytes', logicalType: 'decimal', precision: 9, scale: 2 });
+    for (const page of [1, 2, 3]) {
+      current.page = page;
+      api.state.activeId = null;
+      await api.readPage(current);
+      api.state.activeId = current.id;
+      assert.equal(current.dataError, '');
+      const original = Array.from(current.rows, row => row.recordNumber);
+      current.sort = { field, dir: 1 };
+      assert.deepEqual(sortedRecordNumbers(api, current), original, 'ascending uses numeric amount order within this page');
+      if (page === 1) assert.deepEqual(Array.from(api.sortedRows(current).slice(0, 4), row => row.value.amount), ['-1.25', '2.50', '3.75', '5.00']);
+      current.sort.dir = -1;
+      assert.deepEqual(sortedRecordNumbers(api, current), [...original].reverse());
+      assert.deepEqual(Array.from(current.rows, row => row.recordNumber), original, 'sorting does not mutate cached/source rows');
+      assert.equal(api.sortedRows(current)[0].value.amount, page === 1 ? '125.00' : page === 2 ? '250.00' : '256.25');
+      current.hiddenFields = new Set(current.fields.filter(f => f !== field).map(f => f.index));
+      const first = api.sortedRows(current)[0];
+      assert.equal(api.buildCurrentCsv(current).split('\r\n')[1], `${first.recordNumber},${first.value.amount}`);
+      current.sort = null;
+      assert.deepEqual(sortedRecordNumbers(api, current), original);
+    }
+  });
+
+  test(`${target}: nullable decimals preserve exact large coefficients, signs, stable ties and null-last`, async () => {
+    const api = load(target);
+    const schema = { type: 'record', name: 'Precise', fields: [{ name: 'amount', type: ['null', { type: 'bytes', logicalType: 'decimal', precision: 30, scale: 2 }] }] };
+    const values = [null, 1000n, 900719925474099302n, -900719925474099301n, 1n, -1n, 0n, 125n, 125n, 900719925474099301n, -900719925474099302n, null];
+    const current = await decode(api, schema, values.map(n => n === null ? long(0) : Buffer.concat([long(1), bytes(coefficientBytes(n))])));
+    assert.equal(current.rows[2].value.amount, '9007199254740993.02');
+    assert.equal(current.rows[3].value.amount, '-9007199254740993.01');
+    const original = current.rows.map(row => row.value.amount);
+    current.sort = { field: current.fields[0], dir: 1 };
+    assert.deepEqual(sortedRecordNumbers(api, current), [11, 4, 6, 7, 5, 8, 9, 2, 10, 3, 1, 12]);
+    current.sort.dir = -1;
+    assert.deepEqual(sortedRecordNumbers(api, current), [3, 10, 2, 8, 9, 5, 7, 6, 4, 11, 1, 12]);
+    assert.equal(api.buildCurrentCsv(current), '__record,amount\r\n3,9007199254740993.02\r\n10,9007199254740993.01\r\n2,10.00\r\n8,1.25\r\n9,1.25\r\n5,0.01\r\n7,0.00\r\n6,-0.01\r\n4,-9007199254740993.01\r\n11,-9007199254740993.02\r\n1,null\r\n12,null');
+    assert.deepEqual(current.rows.map(row => row.value.amount), original);
+    assert.equal(api.cellText(current.rows[1].value.amount), '10.00');
+    assert.equal(api.prettyValue(current.rows[1].value.amount), '10.00');
+    api.openCell(current.rows[1], 'amount', current.rows[1].value.amount);
+    assert.equal(api.state.activeCellText, '10.00');
+  });
+
+  test(`${target}: root bytes decimals use scale zero by default and preserve large precision`, async () => {
+    for (const scale of [undefined, 0, 25]) {
+      const api = load(target), schema = { type: 'bytes', logicalType: 'decimal', precision: 40 };
+      if (scale !== undefined) schema.scale = scale;
+      const current = await decode(api, schema, [10n, 2n, -10n, -2n, 9007199254740993n, 9007199254740992n].map(n => bytes(coefficientBytes(n))));
+      current.sort = { field: current.fields[0], dir: 1 };
+      assert.deepEqual(sortedRecordNumbers(api, current), [3, 4, 2, 1, 6, 5]);
+      assert.equal(current.rows[0].value, scale === 25 ? '0.0000000000000000000000010' : '10');
+    }
+  });
+
+  test(`${target}: fixed decimal declarations and namespaced nullable references retain numeric order`, async () => {
+    const api = load(target);
+    const schema = { type: 'record', name: 'Envelope', namespace: 'finance', fields: [
+      { name: 'definition', type: { type: 'fixed', name: 'Money', size: 16, logicalType: 'decimal', precision: 30, scale: 2 } },
+      { name: '__value', type: ['Money', 'null'] },
+      { name: 'qualified', type: { type: 'finance.Money' } }
+    ] };
+    const current = await decode(api, schema, [1000n, 250n, -125n].map(n => Buffer.concat([coefficientBytes(n, 16), long(0), coefficientBytes(n, 16), coefficientBytes(n, 16)])));
+    for (const field of current.fields) {
+      current.sort = { field, dir: 1 };
+      assert.deepEqual(sortedRecordNumbers(api, current), [3, 2, 1], field.name);
+    }
+    assert.equal(api.buildCurrentCsv(current), '__record,definition,__value,qualified\r\n3,-1.25,-1.25,-1.25\r\n2,2.50,2.50,2.50\r\n1,10.00,10.00,10.00');
+  });
+
+  test(`${target}: wrappers preserve declared decimal sorting without changing nested value decoding`, async () => {
+    for (const schema of [
+      { type: { type: 'bytes', logicalType: 'decimal', precision: 6, scale: 2 } },
+      { type: ['null', { type: 'bytes', logicalType: 'decimal', precision: 6, scale: 2 }] }
+    ]) {
+      const api = load(target), union = Array.isArray(schema.type);
+      const current = await decode(api, schema, [1000n, 250n, -125n].map(n => Buffer.concat([...(union ? [long(1)] : []), bytes(coefficientBytes(n))])));
+      current.sort = { field: current.fields[0], dir: 1 };
+      assert.deepEqual(sortedRecordNumbers(api, current), [3, 2, 1]);
+    }
+  });
+
+  test(`${target}: numeric-looking strings and mixed string/decimal unions keep lexical ordering`, async () => {
+    for (const schema of ['string', { type: 'string', logicalType: 'decimal', precision: 6, scale: 2 }, ['string', { type: 'bytes', logicalType: 'decimal', precision: 6, scale: 2 }]]) {
+      const api = load(target), union = Array.isArray(schema);
+      const data = union ? [Buffer.concat([long(0), string('2.50')]), Buffer.concat([long(1), bytes(coefficientBytes(1000n))]), Buffer.concat([long(0), string('001.00')])] : ['2.50', '10.00', '001.00'].map(string);
+      const current = await decode(api, schema, data);
+      current.sort = { field: current.fields[0], dir: 1 };
+      assert.deepEqual(sortedRecordNumbers(api, current), [3, 2, 1]);
+      current.sort.dir = -1;
+      assert.deepEqual(sortedRecordNumbers(api, current), [1, 2, 3]);
+    }
+  });
+
   for (const length of [0, 31, 32, 33, 40, 95, 96, 97, 100]) {
     test(`${target}: complete bytes (${length}) in CSV and inspector, bounded table preview`, async () => {
       const api = load(target), value = sequence(length);

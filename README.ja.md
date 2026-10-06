@@ -1,5 +1,7 @@
 # Avro Viewer
 
+ヘッダーの言語切り替えは EN / JA で統一し、切り替え先とヘルプの説明は表示言語に合わせます。バージョンは vMAJOR.MINOR.PATCH 形式で、バッジは「完全ローカル処理」/「Fully local processing」のままです。
+
 [![GitHub Pages](https://github.com/ttomohisa/htmlapps-avro-viewer/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/ttomohisa/htmlapps-avro-viewer/actions/workflows/deploy-pages.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Single HTML](https://img.shields.io/badge/distribution-single%20HTML-0ea5e9)](https://ttomohisa.github.io/htmlapps-avro-viewer/)
@@ -21,7 +23,7 @@ GitHub Pagesから最初のHTMLを読み込んだ後、選択したファイル�
 - **Avroコンテナ構造を確認** — 埋め込みスキーマ、ファイルメタデータ、Codec、レコード数、ブロック構成を確認できます。
 - **SchemaをTree / Rawで確認** — record / array / map / unionの枝を個別または一括で開閉でき、開閉状態はファイルごとに保持します。再帰型は参照先を表示し、Raw JSONとスキーマのコピーは完全なスキーマを保持します。
 - **必要なブロックだけデコード** — ファイル全体を一括展開せず、現在ページに重なるブロックだけ読み込みます。
-- **主要なLogical Typeを読みやすく表示** — date / timestamp / time-millis / decimalなどを人が確認しやすい値で表示します。
+- **主要なLogical Typeを読みやすく表示** — date / timestamp / time-millis / decimalなどを人が確認しやすい値で表示します。decimal列は、nullを含む型や名前付きfixed型も、現在ページ内で精度を落とさず数値順に並べます。表示・CSVの表記と同値の元の順序を保ち、昇順・降順ともnullは末尾に置きます。通常の文字列は文字順のままです。null以外の分岐が複数あるunionは、デコード後に分岐情報を保持しないため従来の比較を使います。
 - **一般的なCodecに対応** — `null` / `deflate` / `snappy` に対応し、ブラウザに対応デコーダーがある場合は `zstandard` も試します。
 - **現在ページを確認・出力** — Table / Record、表示列、現在ページソート、Cell Inspector、CSVコピー／保存に対応します。表のバイト値は短く表示し、CSV・Record詳細・Cell Inspector／値をコピーでは、入れ子の`bytes`や`fixed`も含めて全バイトを空白区切りの16進数で出力します。`__value`という名前の通常のレコードフィールドも正しく扱います。
 - **複数ファイルを安全に扱う** — 1ファイルが壊れていても他ファイルは開き、状態・Schema・Metadata・Blocks・Dataはタブごとに分離されます。
@@ -120,7 +122,7 @@ Apache AvroはApache Software Foundationのプロジェクトです。本ツー�
 
 ## 依存関係
 
-Avro Viewer v1.0.0 は、実行時のサードパーティJavaScriptライブラリを同梱していません。
+Avro Viewer v1.0.1 は、実行時のサードパーティJavaScriptライブラリを同梱していません。
 
 形式・プロジェクトに関する補足は [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を確認してください。
 
