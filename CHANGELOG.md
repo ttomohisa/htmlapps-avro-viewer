@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.2 - 2026-10-10
+
+- Keep dialog bodies within short windows without nested outer scrollbars, preserving the close control and narrow bottom sheet.
+- Prevent the background page from scrolling while a dialog is open.
+
 ## v1.0.1 - 2026-10-06
 
 - Standardize EN / JA header targets with localized accessible names and titles. Preserve the existing local-processing badge and Help localization.

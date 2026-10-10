@@ -3,7 +3,7 @@
   "name": "Avro Viewer",
   "nameJa": "Avro Viewer",
   "slug": "avro-viewer",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Open Apache Avro Object Container Files locally and inspect schema, metadata, blocks, and records.",
   "descriptionJa": "Avro Object Container Fileをブラウザー内で開き、スキーマ・メタデータ・ブロック・レコードを確認します。",
   "defaultLanguage": "auto",

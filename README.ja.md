@@ -10,6 +10,8 @@
 
 Apache Avro Object Container Fileを外部へアップロードせず、スキーマ・メタデータ・ブロック構成・Logical Type・レコードをブラウザ内だけで確認できる単一HTMLビューアです。
 
+短い画面や拡大表示でもダイアログ内をスクロールでき、開いている間は背景のページが動きません。
+
 ## 🚀 デモ
 
 ### [GitHub PagesでAvro Viewerを開く](https://ttomohisa.github.io/htmlapps-avro-viewer/)
