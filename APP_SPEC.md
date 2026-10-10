@@ -1,6 +1,6 @@
 # Avro Viewer — App Specification
 
-Version: v1.0.1
+Version: v1.0.2
 
 ## Purpose
 
@@ -48,3 +48,13 @@ Runtime network access is blocked by CSP (`connect-src 'none'`). Selected files 
 - Use EN in Japanese UI and JA in English UI, with localized target-language accessible names and titles.
 - Preserve 完全ローカル処理 / Fully local processing and localized Help labels/titles.
 - Header versions use vMAJOR.MINOR.PATCH; existing responsive visibility is unchanged.
+
+## Dialog layout acceptance
+
+- Help, Cell Inspector, and visible-column dialogs use a bounded viewport height with a fixed header and independently scrolling body.
+- Narrow screens retain the safe-area-aware bottom sheet; the body fits below the header without a second outer scrollbar.
+- Background scrolling is locked while a modal is open. Native Close, Escape, backdrop dismissal, and focus behavior remain intact.
+
+- Current-page sort headers are native buttons reachable with Tab and activated by Enter / Space. Repeated activation keeps focus on the replacement header button, cycles ascending / descending / source order, and exposes localized action labels plus `aria-sort` without changing comparison or export semantics.
+
+- CSV Copy/Save and their callbacks require a ready, valid header and no pending page load or input/data error. No active file, malformed/empty bytes, pending inspection, and failed reads cannot export. A valid zero-record container remains exportable as its column header.
