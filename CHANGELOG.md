@@ -4,6 +4,7 @@
 
 - Keep dialog bodies within short windows without nested outer scrollbars, preserving the close control and narrow bottom sheet.
 - Prevent the background page from scrolling while a dialog is open.
+- Make existing current-page sorting keyboard-accessible with native header buttons, localized action labels, sort state, and focus retention after activation.
 
 ## v1.0.1 - 2026-10-06
 

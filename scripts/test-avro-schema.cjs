@@ -31,6 +31,8 @@ function load(relative) {
       async click() { if (!this.disabled) await this.dispatch('click'); },
       contains(node) { return this === node || this.children.some(child => child.contains(node)); },
       querySelectorAll(selector) { return descendants(this).filter(node => matches(node, selector)); },
+      querySelector(selector) { return this.querySelectorAll(selector)[0] || null; },
+      focus() { document.activeElement = this; },
       showModal() {}, close() {}, getBoundingClientRect() { return { left: 0, top: 0, right: 100, bottom: 100 }; }
     };
     el.classList = {
@@ -42,6 +44,8 @@ function load(relative) {
     return el;
   }
   function matches(node, selector) {
+    const sortIndex = selector.match(/^\[data-sort-index="(\d+)"\]$/);
+    if (sortIndex) return node.dataset.sortIndex === sortIndex[1];
     if (selector.startsWith('.')) return node.classList.contains(selector.slice(1));
     if (selector === '[data-i18n]') return !!node.dataset.i18n;
     if (selector === '[data-i18n-title]') return !!node.dataset.i18nTitle;
@@ -81,8 +85,8 @@ function load(relative) {
   const script = [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].at(-1)[1];
   const end = script.lastIndexOf('    })();');
   assert(end > 0);
-  vm.runInContext(script.slice(0, end) + '\n globalThis.api={state,readHeader,scanBlocks,decodeBlock,buildNames,rootFields,buildFileState,renderSchema,renderActive,activateFile,closeFile,inspectFile,addFiles,buildCurrentCsv,t};\n' + script.slice(end), context);
-  return { ...context.api, elements, output, source, created: () => created };
+  vm.runInContext(script.slice(0, end) + '\n globalThis.api={state,readHeader,scanBlocks,decodeBlock,buildNames,rootFields,buildFileState,renderSchema,renderActive,activateFile,closeFile,inspectFile,addFiles,buildCurrentCsv,renderData,t};\n' + script.slice(end), context);
+  return { ...context.api, elements, output, source, document, created: () => created };
 }
 function descendants(node) { return node.children.flatMap(child => [child, ...descendants(child)]); }
 const nodes = (api, className) => descendants(api.elements.get('#schemaTree')).filter(node => node.classList.contains(className));
@@ -303,4 +307,48 @@ for (const target of targets) {
     assert.equal(nodes(api, 'schema-name').filter(node => node.textContent === 'next').length, 2);
   });
 
+}
+
+// Native button activation/Tab behavior is verified separately in Chromium.
+// These tests run real rendering/click handlers and check the replacement DOM.
+for (const target of targets) {
+  test(`${target}: table sorting uses native buttons and preserves focus through all three states`, async () => {
+    const api = load(target), schema = {type:'record',name:'Sortable',fields:[{name:'amount',type:'int'},{name:'label',type:'string'}]};
+    const current = await open(api, schema, [Buffer.concat([long(3),string('third')]),Buffer.concat([long(1),string('first')]),Buffer.concat([long(2),string('second')])]);
+    api.renderData(current);
+    const wrap = api.elements.get('#dataTableWrap');
+    const buttons = () => wrap.querySelectorAll('.sort-button');
+    assert.equal(buttons().length, 2, 'every sortable header must contain a native button');
+    assert(buttons().every(button => button.tagName === 'BUTTON' && button.type === 'button'));
+    assert.equal(buttons()[0].getAttribute('aria-label'), 'Sort amount ascending');
+    const initial = current.rows.map(row => row.recordNumber);
+    for (const [direction, order, ariaSort, nextLabel] of [[1,[2,3,1],'ascending','Sort amount descending'],[-1,[1,3,2],'descending','Clear sorting for amount'],[null,[1,2,3],undefined,'Sort amount ascending']]) {
+      const prior = buttons()[0]; prior.focus(); await prior.click();
+      const replacement = buttons()[0];
+      assert.notEqual(replacement, prior, 'rendering replaces the activated button');
+      assert.equal(api.document.activeElement, replacement, 'keyboard focus returns to the same header');
+      assert.equal(current.sort?.dir ?? null, direction);
+      assert.equal(replacement.getAttribute('aria-label'), nextLabel);
+      const th = wrap.querySelectorAll('th')[1];
+      assert.equal(th.getAttribute('scope'), 'col');
+      assert.equal(th.getAttribute('aria-sort'), ariaSort);
+      assert.deepEqual(api.buildCurrentCsv(current).split('\r\n').slice(1).map(line => Number(line.split(',')[0])), order);
+      assert.deepEqual(current.rows.map(row => row.recordNumber), initial, 'source rows remain unchanged');
+    }
+    api.document.activeElement = api.elements.get('#columnsButton');
+    await buttons()[1].click();
+    assert.equal(api.document.activeElement, api.elements.get('#columnsButton'), 'nonfocused activation does not steal focus');
+  });
+  test(`${target}: sort controls localize labels and preserve literal field names`, async () => {
+    const api = load(target), name = 'long_<b>literal</b>_$&_{field}';
+    const current = await open(api, {type:'record',name:'LiteralSort',fields:[{name,type:'int'}]}, [long(2),long(1)]);
+    api.state.language = 'ja'; api.renderData(current);
+    const button = api.elements.get('#dataTableWrap').querySelectorAll('.sort-button')[0];
+    assert(button, 'a native sort button is rendered');
+    assert.equal(button.textContent, name);
+    assert.equal(button.children.length, 0);
+    assert.equal(button.getAttribute('aria-label'), `${name}を昇順に並べ替え`);
+    button.focus(); await button.click();
+    assert.equal(api.document.activeElement.getAttribute('aria-label'), `${name}を降順に並べ替え`);
+  });
 }

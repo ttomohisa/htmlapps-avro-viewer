@@ -54,3 +54,5 @@ Runtime network access is blocked by CSP (`connect-src 'none'`). Selected files 
 - Help, Cell Inspector, and visible-column dialogs use a bounded viewport height with a fixed header and independently scrolling body.
 - Narrow screens retain the safe-area-aware bottom sheet; the body fits below the header without a second outer scrollbar.
 - Background scrolling is locked while a modal is open. Native Close, Escape, backdrop dismissal, and focus behavior remain intact.
+
+- Current-page sort headers are native buttons reachable with Tab and activated by Enter / Space. Repeated activation keeps focus on the replacement header button, cycles ascending / descending / source order, and exposes localized action labels plus `aria-sort` without changing comparison or export semantics.

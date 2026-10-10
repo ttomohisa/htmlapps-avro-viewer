@@ -10,7 +10,7 @@ The header uses EN / JA language targets with localized accessible names and Hel
 
 A privacy-focused, single-HTML viewer for opening Apache Avro Object Container Files and inspecting schema, metadata, block layout, logical types, and records without uploading selected files to a server.
 
-Dialog contents remain scrollable in short or zoomed windows, and the background page stays still while a dialog is open.
+Dialog contents remain scrollable in short or zoomed windows, and the background page stays still while a dialog is open. Use Tab and Enter / Space on column-header buttons to cycle current-page sorting through ascending, descending, and source order.
 
 ## 🚀 Live demo
 
