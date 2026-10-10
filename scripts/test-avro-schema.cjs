@@ -16,7 +16,7 @@ function load(relative) {
   const payload = source.match(/<script id="self-extract-payload"[^>]*>([\s\S]*?)<\/script>/);
   if (payload) source = gunzipSync(Buffer.from(payload[1].trim(), 'base64')).toString('utf8');
   let created = 0;
-  const output = { clipboard: [], storage: [] };
+  const output = { clipboard: [], storage: [], downloads: [], blobs: [] };
   function element(tag = 'div') {
     created++;
     const listeners = new Map();
@@ -28,7 +28,7 @@ function load(relative) {
       getAttribute(name) { return this.attributes[name]; },
       addEventListener(name, fn) { if (!listeners.has(name)) listeners.set(name, []); listeners.get(name).push(fn); },
       async dispatch(name) { for (const fn of listeners.get(name) || []) await fn({ target: this, preventDefault() {}, stopPropagation() {} }); },
-      async click() { if (!this.disabled) await this.dispatch('click'); },
+      async click() { if (this.tagName === 'A') output.downloads.push({href:this.href,name:this.download}); if (!this.disabled) await this.dispatch('click'); },
       contains(node) { return this === node || this.children.some(child => child.contains(node)); },
       querySelectorAll(selector) { return descendants(this).filter(node => matches(node, selector)); },
       querySelector(selector) { return this.querySelectorAll(selector)[0] || null; },
@@ -76,6 +76,7 @@ function load(relative) {
   const context = vm.createContext({
     TextDecoder, TextEncoder, Uint8Array, DataView, Blob, Response, DecompressionStream,
     document, window: { addEventListener() {}, scrollTo() {} },
+    URL: {createObjectURL(blob) { output.blobs.push(blob); return 'blob:synthetic'; }, revokeObjectURL() {}},
     navigator: { language: 'en', clipboard: { writeText: async text => output.clipboard.push(text) } },
     localStorage: { getItem() { return null; }, setItem(key, value) { output.storage.push([key, value]); } },
     setTimeout() {}, clearTimeout() {}, requestAnimationFrame: fn => fn(),
@@ -85,7 +86,7 @@ function load(relative) {
   const script = [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].at(-1)[1];
   const end = script.lastIndexOf('    })();');
   assert(end > 0);
-  vm.runInContext(script.slice(0, end) + '\n globalThis.api={state,readHeader,scanBlocks,decodeBlock,buildNames,rootFields,buildFileState,renderSchema,renderActive,activateFile,closeFile,inspectFile,addFiles,buildCurrentCsv,renderData,t};\n' + script.slice(end), context);
+  vm.runInContext(script.slice(0, end) + '\n globalThis.api={state,readHeader,scanBlocks,decodeBlock,buildNames,rootFields,buildFileState,renderSchema,renderActive,activateFile,closeFile,inspectFile,addFiles,buildCurrentCsv,renderData,copyCsv,downloadCsv,t};\n' + script.slice(end), context);
   return { ...context.api, elements, output, source, document, created: () => created };
 }
 function descendants(node) { return node.children.flatMap(child => [child, ...descendants(child)]); }
@@ -350,5 +351,55 @@ for (const target of targets) {
     assert.equal(button.getAttribute('aria-label'), `${name}を昇順に並べ替え`);
     button.focus(); await button.click();
     assert.equal(api.document.activeElement.getAttribute('aria-label'), `${name}を降順に並べ替え`);
+  });
+}
+
+for (const target of targets) {
+  const unavailable = [
+    ['missing header', {header:null}], ['pending', {inspection:'pending'}],
+    ['reading', {inspection:'reading'}], ['loading page', {loading:true}],
+    ['inspection error', {inspection:'error',error:'bad container'}],
+    ['read error', {dataError:'bad block'}], ['stored error', {error:'bad container'}]
+  ];
+  test(`${target}: CSV controls disable for unready input and restore for valid input`, async () => {
+    const api = load(target), current = await open(api, {type:'record',name:'Exportable',fields:[{name:'value',type:'int'}]}, [long(42)]);
+    const ready = {...current};
+    for (const [label, patch] of unavailable) {
+      Object.assign(current, ready, patch); api.renderData(current);
+      assert.equal(api.elements.get('#copyCsvButton').disabled, true, label);
+      assert.equal(api.elements.get('#downloadCsvButton').disabled, true, label);
+      Object.assign(current, ready); api.renderData(current);
+      assert.equal(api.elements.get('#copyCsvButton').disabled, false, `${label}: copy restored`);
+      assert.equal(api.elements.get('#downloadCsvButton').disabled, false, `${label}: save restored`);
+    }
+    api.state.files=[]; api.state.activeId=null; api.renderActive();
+    assert.equal(api.elements.get('#copyCsvButton').disabled, true, 'no active file');
+    assert.equal(api.elements.get('#downloadCsvButton').disabled, true, 'no active file');
+  });
+  test(`${target}: actual CSV callbacks cannot export unready or malformed inputs`, async () => {
+    const api = load(target), current = await open(api, {type:'record',name:'Exportable',fields:[{name:'value',type:'int'}]}, [long(42)]);
+    const ready = {...current};
+    for (const [label, patch] of unavailable) {
+      Object.assign(current, ready, patch);
+      await api.copyCsv(); api.downloadCsv();
+      assert.equal(api.output.clipboard.length, 0, label);
+      assert.equal(api.output.downloads.length, 0, label);
+      assert.equal(api.output.blobs.length, 0, label);
+    }
+    api.state.files=[]; api.state.activeId=null;
+    await api.copyCsv(); api.downloadCsv();
+    assert.equal(api.output.clipboard.length, 0); assert.equal(api.output.downloads.length, 0);
+  });
+  test(`${target}: a valid zero-record container still exports its schema header`, async () => {
+    const api = load(target), current = await open(api, {type:'record',name:'EmptyValid',fields:[{name:'value',type:'int'}]});
+    api.renderData(current);
+    assert.equal(current.rows.length, 0);
+    assert.equal(api.elements.get('#copyCsvButton').disabled, false);
+    assert.equal(api.elements.get('#downloadCsvButton').disabled, false);
+    api.elements.get('#outputFilename').value='valid-empty.csv';
+    await api.copyCsv(); api.downloadCsv();
+    assert.equal(api.output.clipboard.at(-1), '__record,value');
+    assert.equal(await api.output.blobs.at(-1).text(), '__record,value');
+    assert.equal(api.output.downloads.at(-1).name, 'valid-empty.csv');
   });
 }

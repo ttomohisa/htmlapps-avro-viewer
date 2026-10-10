@@ -56,3 +56,5 @@ Runtime network access is blocked by CSP (`connect-src 'none'`). Selected files 
 - Background scrolling is locked while a modal is open. Native Close, Escape, backdrop dismissal, and focus behavior remain intact.
 
 - Current-page sort headers are native buttons reachable with Tab and activated by Enter / Space. Repeated activation keeps focus on the replacement header button, cycles ascending / descending / source order, and exposes localized action labels plus `aria-sort` without changing comparison or export semantics.
+
+- CSV Copy/Save and their callbacks require a ready, valid header and no pending page load or input/data error. No active file, malformed/empty bytes, pending inspection, and failed reads cannot export. A valid zero-record container remains exportable as its column header.

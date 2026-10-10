@@ -63,7 +63,7 @@ async function decodeContainer(api, container, pageSize = 1000) {
   file.name = 'example.avro';
   const header = await api.readHeader(file);
   const scanned = await api.scanBlocks(file, header);
-  const current = { id: 'test', file, header, ...scanned, ctx: { names: api.buildNames(header.schema) }, blockCache: new Map(), blockCacheOrder: [], fields: api.rootFields(header.schema), hiddenFields: new Set(), sort: null, rows: [], page: 1, pageSize };
+  const current = { id: 'test', inspection: 'ready', file, header, ...scanned, ctx: { names: api.buildNames(header.schema) }, blockCache: new Map(), blockCacheOrder: [], fields: api.rootFields(header.schema), hiddenFields: new Set(), sort: null, rows: [], page: 1, pageSize };
   api.state.activeId = null;
   await api.readPage(current);
   assert.equal(current.dataError, '', 'the actual Avro file decodes without error');
