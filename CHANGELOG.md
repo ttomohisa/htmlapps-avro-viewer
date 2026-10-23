@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Move only the lower informational footer version to the end of Help. Preserve the existing 620px phone hiding for that version, the header version, and the footer name and local-processing wording. No parser, data, export, dependency, or version changes.
+
 ## v1.0.2 - 2026-10-10
 
 - Keep dialog bodies within short windows without nested outer scrollbars, preserving the close control and narrow bottom sheet.

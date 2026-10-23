@@ -1,5 +1,9 @@
 # Avro Viewer — App Specification
 
+## Final Help version information
+
+- Move only the lower informational footer version to the end of Help. Preserve the existing 620px phone hiding for that version, the header version, and the footer name and local-processing wording. No parser, data, export, dependency, or version changes.
+
 Version: v1.0.2
 
 ## Purpose
