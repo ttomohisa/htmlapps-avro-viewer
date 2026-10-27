@@ -19,15 +19,15 @@ function load(relative) {
   const start = source.indexOf('      function safeJson(');
   const end = source.indexOf("      $('#chooseButton').addEventListener", start);
   assert(start > 0 && end > start, `${relative}: application functions exist`);
-  const element = () => ({ children: [], textContent: '', value: '', append(...items) { this.children.push(...items); }, replaceChildren() { this.children = []; }, showModal() {}, click() {} });
+  const element = () => ({ children: [], textContent: '', value: '', append(...items) { this.children.push(...items); }, replaceChildren() { this.children = []; }, showModal() {}, remove(){},click() {} });
   const elements = new Map();
   const output = { clipboard: [], downloads: [], urls: [] };
-  const state = { files: [], activeId: null };
+  const state = { files: [], activeId: null,copyRequest:0 };
   const context = vm.createContext({
     TextDecoder, TextEncoder, Uint8Array, DataView, Blob, Response, DecompressionStream,
-    state, APP_CONFIG: { slug: 'avro-viewer' },
+    BrowserKittyUI:require('../components/ui-conventions.js'),renderUi(){},state, APP_CONFIG: { slug: 'avro-viewer' },
     $: selector => { if (!elements.has(selector)) elements.set(selector, element()); return elements.get(selector); },
-    document: { createElement: tag => { const el = element(); if (tag === 'a') el.click = () => output.downloads.push({ href: el.href, download: el.download }); return el; } },
+    document: {body:{append(){}}, createElement: tag => { const el = element(); if (tag === 'a') el.click = () => output.downloads.push({ href: el.href, download: el.download }); return el; } },
     navigator: { clipboard: { writeText: async text => output.clipboard.push(text) } },
     URL: { createObjectURL: blob => { output.urls.push(blob); return 'blob:test'; }, revokeObjectURL() {} },
     setTimeout() {}, toast() {}, t: key => key, formatNumber: String,

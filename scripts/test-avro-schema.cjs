@@ -24,16 +24,16 @@ function load(relative) {
       tagName: tag.toUpperCase(), children: [], dataset: {}, style: {}, attributes: {}, className: '', textContent: '', value: '', disabled: false, open: false,
       append(...items) { this.children.push(...items); },
       replaceChildren(...items) { this.children = items; this.textContent = ''; },
-      setAttribute(name, value) { this.attributes[name] = String(value); },
+      isConnected:true,remove(){this.isConnected=false},select(){document.activeElement=this},removeAttribute(name){delete this.attributes[name]},setAttribute(name, value) { this.attributes[name] = String(value); },
       getAttribute(name) { return this.attributes[name]; },
       addEventListener(name, fn) { if (!listeners.has(name)) listeners.set(name, []); listeners.get(name).push(fn); },
       async dispatch(name) { for (const fn of listeners.get(name) || []) await fn({ target: this, preventDefault() {}, stopPropagation() {} }); },
       async click() { if (this.tagName === 'A') output.downloads.push({href:this.href,name:this.download}); if (!this.disabled) await this.dispatch('click'); },
       contains(node) { return this === node || this.children.some(child => child.contains(node)); },
       querySelectorAll(selector) { return descendants(this).filter(node => matches(node, selector)); },
-      querySelector(selector) { return this.querySelectorAll(selector)[0] || null; },
+      getElementById(id){return elements.get('#'+id)},querySelector(selector) { return this.querySelectorAll(selector)[0] || null; },
       focus() { document.activeElement = this; },
-      showModal() {}, close() {}, getBoundingClientRect() { return { left: 0, top: 0, right: 100, bottom: 100 }; }
+      showModal() {this.open=true}, close() {this.open=false}, getBoundingClientRect() { return { left: 0, top: 0, right: 100, bottom: 100 }; }
     };
     el.classList = {
       contains(name) { return el.className.split(/\s+/).includes(name); },
@@ -66,7 +66,7 @@ function load(relative) {
   }
   const document = {
     body: element('body'), documentElement: element('html'), createElement: element, addEventListener() {},
-    querySelector(selector) { assert(elements.has(selector), `Missing DOM target ${selector}`); return elements.get(selector); },
+    getElementById(id){return elements.get('#'+id)},querySelector(selector) { assert(elements.has(selector), `Missing DOM target ${selector}`); return elements.get(selector); },
     querySelectorAll(selector) {
       const scoped = selector.match(/^(#[\w-]+) (.+)$/);
       if (scoped) return this.querySelector(scoped[1]).querySelectorAll(scoped[2]);
@@ -75,7 +75,7 @@ function load(relative) {
   };
   const context = vm.createContext({
     TextDecoder, TextEncoder, Uint8Array, DataView, Blob, Response, DecompressionStream,
-    document, window: { addEventListener() {}, scrollTo() {} },
+    HTMLElement:Object,document, window: { addEventListener() {}, scrollTo() {} },
     URL: {createObjectURL(blob) { output.blobs.push(blob); return 'blob:synthetic'; }, revokeObjectURL() {}},
     navigator: { language: 'en', clipboard: { writeText: async text => output.clipboard.push(text) } },
     localStorage: { getItem() { return null; }, setItem(key, value) { output.storage.push([key, value]); } },
@@ -83,11 +83,13 @@ function load(relative) {
     __APP_CONFIG_JSON__: { slug: 'avro-viewer', name: 'Avro Viewer', nameJa: 'Avro Viewer', version: '1.0.0' },
     __BUILD_MANIFEST_JSON__: {}, __EMBEDDED_ASSET_BUNDLE_JSON__: {}
   });
+  vm.runInContext(fs.readFileSync(path.join(root,'components/ui-conventions.js'),'utf8'),context);
+  for(const match of source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g))if(match[1].includes('window.AppConfirm = Object.freeze'))vm.runInContext(match[1],context);
   const script = [...source.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].at(-1)[1];
   const end = script.lastIndexOf('    })();');
   assert(end > 0);
-  vm.runInContext(script.slice(0, end) + '\n globalThis.api={state,readHeader,scanBlocks,decodeBlock,buildNames,rootFields,buildFileState,renderSchema,renderActive,activateFile,closeFile,inspectFile,addFiles,buildCurrentCsv,renderData,copyCsv,downloadCsv,t};\n' + script.slice(end), context);
-  return { ...context.api, elements, output, source, document, created: () => created };
+  vm.runInContext(script.slice(0, end) + '\n globalThis.api={state,readHeader,scanBlocks,decodeBlock,buildNames,rootFields,buildFileState,renderSchema,renderActive,activateFile,closeFile,inspectFile,addFiles,buildCurrentCsv,renderData,copyCsv,downloadCsv,t,readPage,requestCloseFile,copyText,renderUi,setDecodeBlock:fn=>decodeBlock=fn};\n' + script.slice(end), context);
+  return { context,...context.api, elements, output, source, document, created: () => created };
 }
 function descendants(node) { return node.children.flatMap(child => [child, ...descendants(child)]); }
 const nodes = (api, className) => descendants(api.elements.get('#schemaTree')).filter(node => node.classList.contains(className));
@@ -402,4 +404,12 @@ for (const target of targets) {
     assert.equal(await api.output.blobs.at(-1).text(), '__record,value');
     assert.equal(api.output.downloads.at(-1).name, 'valid-empty.csv');
   });
+}
+
+for(const target of targets){
+ test(`${target}: delayed older page cannot replace newer page or revive removed file`,async()=>{const api=load(target);await api.addFiles([ocf('int',[long(1),long(2)])]);const fs=api.state.files[0];fs.pageSize=1;fs.blocks=[{rowStart:0,rowEnd:2,count:2}];let first,second,calls=0;api.setDecodeBlock(()=>new Promise(r=>{if(++calls===1)first=r;else second=r}));fs.page=1;const a=api.readPage(fs);fs.page=2;const b=api.readPage(fs);second([11,22]);await b;first([99,88]);await a;assert.equal(fs.rows[0].value,22);assert.equal(fs.rows[0].recordNumber,2);const c=api.readPage(fs);api.closeFile(fs.id);second([33,44]);await c;assert.equal(api.state.files.length,0);assert.equal(fs.removed,true)});
+ test(`${target}: opening-file removal confirms scope, cancels first, translates and focuses surviving chooser`,async()=>{const api=load(target),file=ocf('int',[long(1)]);const original=file.slice.bind(file);let release;file.slice=(...args)=>({arrayBuffer:()=>new Promise(r=>release=async()=>r(await original(...args).arrayBuffer()))});const opening=api.addFiles([file]);await Promise.resolve();const current=api.state.files[0];const remove=api.requestCloseFile(current.id);assert.equal(api.document.activeElement,api.elements.get('#appConfirmCancel'));assert.match(api.elements.get('#appConfirmMessage').textContent,/example.avro/);await api.elements.get('#languageButton').click();assert.match(api.elements.get('#appConfirmTitle').textContent,/一覧から/);await api.elements.get('#appConfirmOk').click();await remove;assert.equal(api.state.files.length,0);assert.equal(api.document.activeElement,api.elements.get('#chooseButton'));await release();await opening;assert.equal(api.state.files.length,0);assert.equal(current.header,null)});
+ test(`${target}: copy failure persists and translates; fallback cleans append throws and owns focus`,async()=>{const api=load(target);await api.addFiles([ocf('int',[long(1)])]);api.context.navigator.clipboard.writeText=async()=>{throw Error('clipboard blocked')};const later={isConnected:true},origin={isConnected:true,focus(){api.document.activeElement=this}};api.document.activeElement=origin;api.document.execCommand=()=>{api.document.activeElement=later;return false};await api.copyCsv();assert.equal(api.document.activeElement,later);assert.match(api.elements.get('#copyNotice').textContent,/Copy failed/);await api.elements.get('#languageButton').click();assert.match(api.elements.get('#copyNotice').textContent,/コピーできません/);const append=api.document.body.append;let area;const create=api.document.createElement;api.document.createElement=tag=>{area=create(tag);return area};api.document.body.append=(...items)=>{append.apply(api.document.body,items);throw Error('attached then failed')};await api.copyCsv();assert.equal(area.isConnected,false);api.document.body.append=append;api.document.execCommand=()=>true;await api.copyCsv();assert.equal(api.elements.get('#copyNotice').textContent,'')});
+ test(`${target}: edited CSV delivery failure cleans anchor and keeps rows and localized recovery`,async()=>{const api=load(target);await api.addFiles([ocf('int',[long(1)])]);const fs=api.state.files[0];api.elements.get('#outputFilename').value='edited-name';const create=api.document.createElement;let anchor;api.document.createElement=tag=>{const el=create(tag);if(tag==='a'){anchor=el;el.click=()=>{throw Error('delivery blocked')}}return el};api.downloadCsv();assert.equal(anchor.download,'edited-name.csv');assert.equal(anchor.hidden,true);assert.equal(anchor.isConnected,false);assert.equal(fs.rows[0].value,1);assert.match(api.elements.get('#exportNotice').textContent,/delivery blocked/);await api.elements.get('#languageButton').click();assert.match(api.elements.get('#exportNotice').textContent,/作成できません/)});
+ test(`${target}: language persistence failure is screen-only and preserves filename/selection`,async()=>{const api=load(target);await api.addFiles([ocf('int',[long(1)])]);const fs=api.state.files[0];fs.outputFilename='kept';api.context.localStorage.setItem=()=>{throw Error('blocked')};await api.elements.get('#languageButton').click();assert.match(api.elements.get('#languageNotice').textContent,/この画面/);assert.equal(api.state.activeId,fs.id);assert.equal(api.elements.get('#outputFilename').value,'kept')});
 }

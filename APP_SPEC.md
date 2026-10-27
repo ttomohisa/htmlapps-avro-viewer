@@ -62,3 +62,7 @@ Runtime network access is blocked by CSP (`connect-src 'none'`). Selected files 
 - Current-page sort headers are native buttons reachable with Tab and activated by Enter / Space. Repeated activation keeps focus on the replacement header button, cycles ascending / descending / source order, and exposes localized action labels plus `aria-sort` without changing comparison or export semantics.
 
 - CSV Copy/Save and their callbacks require a ready, valid header and no pending page load or input/data error. No active file, malformed/empty bytes, pending inspection, and failed reads cannot export. A valid zero-record container remains exportable as its column header.
+
+## Common UI v1
+
+Show tab-only retention, current-page visible-column CSV scope, shared native states and common language resolution. File removal requires cancel-first confirmation, names the discarded view settings and preserves original files. File/page generations reject late results after removal or newer paging. Copy/export errors remain with the file until matching recovery; anchor delivery announces Download started.
