@@ -268,3 +268,10 @@ foreach ($HelpArtifact in @("src/index.template.html", "dist/index.html", "dist/
 
 & node (Join-Path $Root "scripts/test-common-ui.cjs")
 if ($LASTEXITCODE -ne 0) { throw "Shared UI pin/native-script/gzip checks failed." }
+
+$previousTestHtml=$env:TEST_HTML
+try { foreach ($relative in @("src/index.template.html","dist/index.html","avro-viewer.html")) {
+  $env:TEST_HTML=Join-Path $Root $relative
+  & node --test (Join-Path $Root "tests/mobile-help-version.test.cjs")
+  if ($LASTEXITCODE -ne 0) { throw "Terminal Help version checks failed: $relative" }
+}} finally { $env:TEST_HTML=$previousTestHtml }
